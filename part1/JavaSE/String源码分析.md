@@ -13,10 +13,10 @@
 4.public char charAt(int index) // 获取指定位置的char字符
   public int codePointAt(int index) // 获取指定位置的Unicode字符码，以十进制表示
   例如："A".codePointAt(0); //结果为65
-        "a".codePointAt(0); //结果为97
-	"李".codePointAt(0); //结果为26446
-        Unicode是ASCII的扩充，前128位完全一致，所以"a"的Unicode码就是ASCII码，十进制表示为“97”
-        中、日、韩的三种文字占用了Unicode中0x3000到0x9FFF的部分，26446为0x674E
+       "a".codePointAt(0); //结果为97
+       "李".codePointAt(0); //结果为26446
+       Unicode是ASCII的扩充，前128位完全一致，所以"a"的Unicode码就是ASCII码，十进制表示为“97”
+       中、日、韩的三种文字占用了Unicode中0x3000到0x9FFF的部分，26446为0x674E
 
 5.public void getChars(int srcBegin, int srcEnd, char dst[], int dstBegin); // 复制原字符数组到指定的目标数组
   各参赛含义：原数组开始位置，原数组结束位置，目标数组，目标数组的偏移
