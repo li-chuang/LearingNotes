@@ -35,6 +35,7 @@
   在此之后，判断是否为String类型，然后将字符一位一位的进行比对，所有对应位数上的字符均一致，则认为此字符串
   是相同字符串。
 
+
 8.public boolean contentEquals(StringBuffer sb);// 参数可以是其他CharSequence
   其实也是用来判断字符串是否一致，字面一致即可
 
@@ -47,6 +48,7 @@
   另外compareToIgnoreCase(String str)作用差不多，也是比较大小，不过是不区分大小写，原因就是此方法内单个char字符
   进行比较时，假如不一致，就进行一次Character.toUpperCase(c)操作，再不一致就进行一次Charcater.toLowerCase(c)操作
   返回的还是两个字符的Unicode差值
+
 
 11.public boolean regionMatchs(int toffset, String other, int ooffset, int len);// 用于比较字符串指定部分是否一致
   参数说明：this字符串偏移，other字符串，other字符串偏移，要比较的长度
@@ -62,6 +64,7 @@
    	return startsWith(suffix, value.length - suffix.value.length);
    }
    其实它们更准确的说是在比较子字符串是否一致，只不过默认比较开头或者结尾的多一些，也就用习惯了。
+
 
 13.public int hashCode() { // 获取hashcode值
    	int h = hash;
