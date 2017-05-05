@@ -13,10 +13,10 @@
 4.public char charAt(int index) // 获取指定位置的char字符
   public int codePointAt(int index) // 获取指定位置的Unicode字符码，以十进制表示
   例如："A".codePointAt(0); //结果为65
-       "a".codePointAt(0); //结果为97
-       "李".codePointAt(0); //结果为26446
-       Unicode是ASCII的扩充，前128位完全一致，所以"a"的Unicode码就是ASCII码，十进制表示为“97”
-       中、日、韩的三种文字占用了Unicode中0x3000到0x9FFF的部分，26446为0x674E
+        "a".codePointAt(0); //结果为97
+	"李".codePointAt(0); //结果为26446
+        Unicode是ASCII的扩充，前128位完全一致，所以"a"的Unicode码就是ASCII码，十进制表示为“97”
+        中、日、韩的三种文字占用了Unicode中0x3000到0x9FFF的部分，26446为0x674E
 
 5.public void getChars(int srcBegin, int srcEnd, char dst[], int dstBegin); // 复制原字符数组到指定的目标数组
   各参赛含义：原数组开始位置，原数组结束位置，目标数组，目标数组的偏移
@@ -30,11 +30,10 @@
 
 7.public boolean equals(Object anObject);// 此方法用于比对是否相等
   作为一个来自Object类中的基本方法，equals()被大量的其他类根据自己的特定需求进行重写，这里也不例外。
-  在代码中，可以看到首先是用‘==’进行比对，这比较的实际是hashcode，也即假如hashcode一致，（存储地址一致，）
+  在代码中，可以看到首先是用‘==’进行比对，--这比较的实际是hashcode，也即假如hashcode一致，（存储地址一致，）--
   两个字符串自然也是一致的。
   在此之后，判断是否为String类型，然后将字符一位一位的进行比对，所有对应位数上的字符均一致，则认为此字符串
   是相同字符串。
-
 
 8.public boolean contentEquals(StringBuffer sb);// 参数可以是其他CharSequence
   其实也是用来判断字符串是否一致，字面一致即可
@@ -48,7 +47,6 @@
   另外compareToIgnoreCase(String str)作用差不多，也是比较大小，不过是不区分大小写，原因就是此方法内单个char字符
   进行比较时，假如不一致，就进行一次Character.toUpperCase(c)操作，再不一致就进行一次Charcater.toLowerCase(c)操作
   返回的还是两个字符的Unicode差值
-
 
 11.public boolean regionMatchs(int toffset, String other, int ooffset, int len);// 用于比较字符串指定部分是否一致
   参数说明：this字符串偏移，other字符串，other字符串偏移，要比较的长度
@@ -64,7 +62,6 @@
    	return startsWith(suffix, value.length - suffix.value.length);
    }
    其实它们更准确的说是在比较子字符串是否一致，只不过默认比较开头或者结尾的多一些，也就用习惯了。
-
 
 13.public int hashCode() { // 获取hashcode值
    	int h = hash;
