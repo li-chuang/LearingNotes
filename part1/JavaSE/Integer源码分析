@@ -1,0 +1,419 @@
+1.public final class Integer extends Number implements ...
+  请注意，这个类是用final来修饰的，这一点与String一样；此类不可以被继承，不可以被重写
+  另外，此类继承了Number抽象类，Number抽象类中有一些抽象方法，如intValue()、longValue()等，必须实现
+
+
+2.public static final int MIN_VALUE = 0x80000000; // -2^31
+  public static final int MAX_VALUE = 0x7fffffff; // 2^31 - 1
+  设置静态常量最小值与最大值，int在Java中占4个字节，用32位表示，十六进制的1位可以表示二进制4位，
+  所以一个32位的二进制int值可以用8位的十六进制数表示；
+  最前面一位为符号位，正数为0，负数为1
+  Java中的二进制数都是用补码表示的，补码的补码就是原码。
+
+3.private final int value;
+  这个是Integer底层的数据值，是私有的，final的，不可以改变，和String一样，当改了Integer的值，实际上就是一个新的Integer了。
+
+4.public Integer(int value);
+  public Integer(String s);
+  构造方法，其实不建议使用，要获取Integer数据类型，用Integer.valueOf()最好，可以使用Integer缓存
+
+5.public static String toString(int i , int radix);
+  第一个参数为要转化为字符串的数字，第二个参数为进制数
+  如果进制数的设置大于36或者小于2，则默认使用10进制
+
+  内部原理是用i不断除以基数取余，通过余数在特定的数组中获取指定的char类型字符，然后从后向前放入数组中，
+  然后通过new String(char[], int , int)获取结果字符串
+  
+6.public static String toHexString(int i);// 指定转化为16进制数的字符串
+  public static String toOctalString(int i);// 指定转化为8进制数的字符串
+  public static String toBinaryString(int i);// 指定转化为2进制数的字符串
+  其中int i最好是无符号数，也即正数，用负数的话可能出现内存泄漏
+  它们都有一个共同的私有类：
+  private static String toUnsignedString(int i, int shift){
+	char[] buf = new char[32];  // int是32位，所以新建一个32位的char数组
+	int charPos = 32;	    // charPos可以看做是指针，指向数据开始的位置
+	int radix = 1 << shift;	    // 向左移位，移1位，radix=2；移3位，radix=8；移4位，radix=16
+	int mask = radix - 1;	    // 理解为掩码，分别为1,7,15,二进制表示分别为[1],[111],[1111]
+	do {
+		buf[--charPos] = digits[i & mask];// i & mask按位与运算，结果是只有最后的1,3,4位有效，其他
+						  // 位都被mask补的0清除了，然后到设定的字符数组中获取指定字符
+		i >>>= shift;	   // >>>为无符号右移，不管符号位，高位直接补0，作用是将上面比较过的数据清理掉
+	} while(i != 0);
+	return new String(buf, charPos, (32 - charPos));// 通过new String(char[] buf, int offset, int length)获取结果字符串
+  }
+
+7.public static String toString(int i);// 默认将一个十进制数转为字符串，负数也可以
+  在代码中，有一段特别有意思，特地拿出来分析下：
+  while ( i >= 65536 ) {
+	q = i / 100; 		// 作者认为除以10太慢，除以100可能会快一些，毕竟操作次数只有原来的一半
+	r = i - ((q << 6) + (q << 5) + (q << 2));// << 为左移，r = i - (q * 2^6 + q * 2^5 + q * 2^2) = i - (q * 100)
+	i = q;
+	buf[--charPos] = digitOnes[r];// 通过i - ( i/100) * 100 这个简单的操作，剩下的就是末尾的两位数了，
+				      // 其实照此思路，获取末尾多少位都不成问题啊
+	buf[--charPos] = digitTens[r];// 要不是准备好的结果字符数组数量有限，确实还可以获取更多位数
+  }
+  for(;;){			// 毫无疑问，到了这里的，都是小于 65536的数字了
+	q = (i * 52429) >>>(19);// 无符号右移19位，相当于除以2^19，所以前面的式子等同于
+	r = i - ((q << 3) + (q << 1));  // r = i - ( q * 2^3 + q * 2) = i - (q * 10)
+	buf[--charPos] = digits[r]; 	// 获取准备好的结果数组中的字符，添加进准备好的字符数组中
+	i = q;
+	if(i == 0) break;
+  }
+  在代码开头的部分，有这样的注释：I use the "invariant division by multiplication" trick to
+  accelerate Integer.toString.  In particular we want to avoid division by 10.
+  可以看出，代码作者是在有意识的规避“除以10”的操作。于是为了提高运算速度，作者开启了他的
+  神奇代码之旅。
+  首先，假如数字不小于65536（2^16）,除以100，获得除以100后的余数，放入准备好的数组中
+  然后，对于小于65536的数字，做了(i * 52429) >>> (16+3)这个操作，这个操作尤其让人困惑，
+	但实际上作用就是：除以10，只不过用了乘法加位移的计算方式
+
+  而(i * 52429) >>> (16+3)这个操作为什么与 i/10是大致等效的呢？请看我的解释：
+  (i * 52429) >>> (16+3) = (i * 52429)/524288,
+  而52429/524288 约等于 0.1000003，也就是i * 0.1 => i / 10
+  我们知道，位移的速度是快于乘除法的，而乘法的速度是快于除法的，这样做，可以提高运算的速度
+
+  为什么要使用52429这个数字，以及位移19位呢？
+  其实，除了52429这个数字之外，还有其他的数字可以使用，例如
+  2^10 = 1024 , 103/1024 = 0.1006
+  2^12 = 4096 , 410/4096 = 0.1001
+  2^14 = 16384 , 1639/16384 = 0.10004
+  2^16 = 65536 , 6554/65536 = 0.100006
+  ......
+  剩下的还有，就不一一列举了，但总的来说，选择52429具有比较高的精确度，如果精确度低，在一除一乘之间，
+  可能会产生误差，例如位移10位，误差只精确到小数点后面4位，处理比较大的数据的时候，就有误差，毕竟这不是
+  真正的“除10”操作
+
+  当然，位移22位也可以达到这样的精度，为什么不选用位移22位的方案呢？
+  这是因为在移位之前，还有一个乘法运算(i * num2) >>> num3 ,为了保证做乘法的时候不溢出，num2越大，i必须越小
+  大致推算下，2^19转为2^22,则限制数据需要从65536(2^16)下降到8192(2^13)，而8192太小，数据处理上可能没什么意义了。
+ 
+  而且65536有一个好处是正好2^16,正好占用2字节，是正数4个字节的一半，有利于CPU访问数据
+
+  65536与52429都是2^16级别的，计算结果超出了2^31，可最后结果为什么是对的呢？
+  如果单纯只打印出两者相乘的结果，则数据肯定溢出了，变成了负值，但有>>>的时候不同了，可以忽略符号位，成为无符号数，
+  无符号数的范围是[0, 2^32]，两者相乘的结果只要不大于2^32就没有问题
+  65536是2^16,52429正好小于2^16,所以，他们的乘积在无符号向右移位就能保证数字的准确性。
+
+
+8.public static int parseInt(String s, int radix);
+  第一个参数是需要转化为数字的字符串，第二个参数是转化的基数，也就是按照什么进制数进行转化
+  例如：Integer.parseInt("1100110", 2); returns 102
+
+  另外，parseInt(String s); // 里面的字符串按照十进制数进行转换
+  底层就是调用的上一个方法，radix默认设定的是10
+
+
+9.public static Integer valueOf(String s , int radix){
+	return Integer.valueOf(parseInt(s, radix));
+  }
+  public static Integer valueOf(String s){
+	return Integer.valueOf(parseInt(s, 10));
+  }
+  它们都是对parseInt方法的再包装，parseInt只是将字符串转为数字的基本类型int,而valueOf则是转为Integer类型
+
+
+10.public static Ingeger valueOf(int i){
+	assert IntegerCache.high >= 127;				// 断言high >= 127，
+        if (i >= IntegerCache.low && i <= IntegerCache.high)		// 如果数字在缓存范围内
+            return IntegerCache.cache[i + (-IntegerCache.low)];		// 以缓存的Integer类作为返回
+        return new Integer(i);						// 如果不在缓存范围内，按常规new Integer(i)
+  }
+  这个方法，就是第8点代码中包装的一层方法，作用似乎挺简单，仅仅是将基本类型int转化为包装类型Integer,
+  好像很简单，其实重点不在这里，重点在于IntegerCache私有静态内部类中：
+    private static class IntegerCache {
+        static final int low = -128;			// 小值 -128
+        static final int high;				// 大值 
+        static final Integer cache[];			// 缓存数组，注意是Integer类型
+
+        static {					// 注意这里的static，只在类加载的时候运行一次，单例模式的关键
+            // high value may be configured by property
+            int h = 127;				// 大值，默认为127
+            String integerCacheHighPropValue =
+                sun.misc.VM.getSavedProperty("java.lang.Integer.IntegerCache.high");
+            if (integerCacheHighPropValue != null) {
+                int i = parseInt(integerCacheHighPropValue);
+                i = Math.max(i, 127);
+                // Maximum array size is Integer.MAX_VALUE
+                h = Math.min(i, Integer.MAX_VALUE - (-low) -1);
+            }
+            high = h;
+
+            cache = new Integer[(high - low) + 1];	// 创建缓存区
+            int j = low;
+            for(int k = 0; k < cache.length; k++)
+                cache[k] = new Integer(j++);		// 将范围区间中的值加入缓存区中
+        }
+
+        private IntegerCache() {}			// 注意这里是私有构造方法，单例模式的重点
+    }
+  以前的面试中，总会有面试官问你诸如“equals 与 == ”之类的问题，String中有这个问题，整型数据也有这个问题
+  一般来说，new了一个类，那必须是重新开辟了存储地址，导致new出来的两个类 “==”时返回false，但是在Integer中
+  有一个陷阱，那就是IntegerCache中展示出来了，默认[-128,127]之间的数字，会缓存起来，我们用valueOf(int)获取的
+  两个相同数字，有可能来自同一缓存地址
+
+  总结：
+  i.IntegerCache中使用单例模式保证数据的唯一性，使用static{ }确保只在类加载的时候运行一次，保证数据安全
+    这样的做法，值得学习
+  ii.IntegerCache只在public static Ingeger valueOf(int i)方法中使用，如果直接new Integer("1")，即使数字在[-128,127]
+    范围内，也不会产生作用，毕竟它们是不相干的问题
+  iii.通过上面一点可知道，为了使数字使用更有效，最好使用Integer.valueOf(1)这种方式，而不是直接new Integer(1),
+    这样的做法，肯定无法从缓存中取值啊
+  
+  最后，再提醒一句：要用Integer.valueOf(),参数为String，int都行，不要直接new Integer(),参数String，int都不行
+        parseInt()返回的是int，也可以少用些
+
+
+11.public byte byteValue(){
+	return (byte)value;
+  }
+  这是从Number抽象类中继承过来的方法，与之类似的还有public short shortValue()
+  另外还有int，long等也差不多，实现都类似的，
+  注意：它们都是对value进行操作，byte和short是进行强行类型转换，有可能丢失一部分数据
+
+
+12.public int hashCode(){
+	return value;
+  }
+  所有从Object中来的方法，都值得我们认真对待，这里的hashCode()方法虽然简单，但也不要轻视
+  整型的hashcode是自己本身，这点倒是和String不一样，但对于标识身份，则理当如此
+
+  public boolean equals(Object obj){
+	if (obj instanceof Integer) {
+            return value == ((Integer)obj).intValue();
+        }
+        return false;
+  }
+  只要数字一致，那它们就是相等的。
+
+
+13.public static Integer getInteger(String nm, Integer val);
+  实现的核心代码时：System.getProperty(nm);
+  获取系统配置值，如果系统没有此值，或为null,或为""，则返回默认值val
+
+
+14.public static Integer decode(String nm); // 解析字符串为Integer类型数
+
+
+15.public int compareTo(Integer anotherInteger){ 	// 注意这个没有用static修饰，需要有对象使用
+	return compare(this.value, anotherInteger.value);
+  }
+  public static int compare(int x, int y){		// 这个有static，是静态的
+	return (x < y) ? -1 :((x == y) ? 0 : 1);
+  }
+  
+
+16.public static int highestOneBit(int i){ // 获取整数二进制最高位1的值
+	i |= (i >>  1);
+        i |= (i >>  2);
+        i |= (i >>  4);
+        i |= (i >>  8);
+        i |= (i >> 16);
+        return i - (i >>> 1);
+  }
+  计算过程如下，举例 i= 0000 ... 1001
+  0000 ... 1001 | 0000 ... 0100 得到 i = 0000 ... 1101
+  0000 ... 1101 | 0000 ... 0011 得到 i = 0000 ... 1111 
+  ......
+  最后是减法：
+  0000 ... 1111 - 0000 ... 0111 得到 i = 0000 ... 1000 
+  总结：
+  其实，我也不知道这个方法有什么用，除了最高位的1保留，其他位全部用0替换，结果就是获取一个2^n值
+  9，最后获取8
+  17，最后获取16
+  1520，最后获取1024 
+
+17.public static int lowestOneBit(int i){ // 获取整数二进制最低位1的值
+	reurn i & -i;  
+  }
+  也不知道什么用，计算方式也很一目了然，验证起来是正确的，假如以后遇到了与此有关的信息，再来回头看吧
+
+
+18.public static int numberOfLeadingZeros(int i){  // i在二进制下查找从首部开始0的个数
+	if (i == 0)				   // 如果i = 0 ，那就是32个0，返回32
+            return 32;
+        int n = 1;
+        if (i >>> 16 == 0) { n += 16; i <<= 16; }  // 判断第一个非零值是否位于高16位
+        if (i >>> 24 == 0) { n +=  8; i <<=  8; }  // 判断第一个非零值是否位于高8位
+        if (i >>> 28 == 0) { n +=  4; i <<=  4; }  // 判断第一个非零值是否位于高4位
+        if (i >>> 30 == 0) { n +=  2; i <<=  2; }  // 判断第一个非零值是否位于高2位
+        n -= i >>> 31;				   // 判断第一个非零值是否位于左边第一位
+        return n;
+  }
+  在这里，使用了典型的二分查找法，由于int是32 位，所以选16中分
+  注意，因为用了>>> 无符号右移，所以整个int可以看做一个无符号数，范围[0, 2^32]
+
+  public static int numberOfTrailingZeros(int i); // 在二进制下查找从尾部开始的0的个数
+  原理也是一样的，也是用的二分加位移
+
+19.public static int bitCount(int i);{ // 找二进制表示中1的个数
+        // HD, Figure 5-2              说下HD，就是Hacker's Delight的缩写，一本书，比较底层，很好的书 
+        i = i - ((i >>> 1) & 0x55555555);
+        i = (i & 0x33333333) + ((i >>> 2) & 0x33333333);
+        i = (i + (i >>> 4)) & 0x0f0f0f0f;
+        i = i + (i >>> 8);
+        i = i + (i >>> 16);
+        return i & 0x3f;
+  }
+  注意，但凡有>>>无符号右移的，基本可以不用管符号，像这里，统计1的个数，也不算符号位的1
+  下面进入正题，上面这一行一行的代码是什么意思呢，确实挺复杂的，我也是找了好多资料，才将这些问题一一解开。
+
+  大致的思路如下：
+  首先每两位一组，求二进制1的个数，并且保存在原处；然后每四个一组，将之前每两个组计算出来的值相加，再把它存储在原处，
+  然后以此类推，直到完成。
+  
+  其实，直到了思路，还是不懂。
+  这里，就要使用原来学习过数据结构设计中已知条件，通过结构设计，获取预想结果，
+  	真实情况(x)	预想结果(y)	结果说明
+	00		00		真实的二进制码00，没有一个‘1’，用‘00’表示此种结果
+	01		01		真实的二进制码01，有一个‘1’，用‘01’表示此种结果
+	10		01		真实的二进制码10，有一个‘1’，用‘01’表示此种结果
+	11		10		真实的二进制码11，有两个‘1’，用‘10’表示此种结果
+  现在问题来了，有什么方法，可以使得 y = f(x) 成立呢？就这4个x值，获取对应的y值，只要符合应该都可以。
+  后来，作者提出了这种方案： y = x - x>>>1, 在4中情况下都符合，而且非常简单，这也是代码中第一行的大致轮廓。
+
+  理论问题解决了，实际操作中还有一个问题，我们知道：右移(>>)是与符号有关的，而无符号右移(>>>)不管符号，左边都补0。
+	真实情况(x)	右移一位(x>>>1) 	预想结果
+	00		00			00
+	01		00			01
+	10		01			01
+	11		01			10
+  当只有两位的时候，y = x - x>>>1 自然是正确的，不止两位的时候，情况就不一样了：
+  我们希望左边补‘0’，然而真实情况是从更左边移过来一位，如11 10，按两两划分，结果自然是10 01，可现实情况在右移一位的时候产生问题，
+  只在最高位补‘0’，其他位只是顺势右移而已。
+  问题的关键在于：右移一位的时候，最高位都是补‘0’，可是不止两位的时候，右移一位后，基本单元的高位可能是从其他地方移过来的1，影响计算
+  找到了这个症结后，有了解决的办法：0x55555555，十六进制数0x5的二进制表示为01 01，可以保证基本单元（两位二进制数）的高位都为‘0’
+  于是就有了 (i >>> 1) & 0x55555555 ，来处理右移时的问题，剩下的都可以按照 y = x - x>>>1的思路处理了
+  
+  两位的情况解决了，四位的情况怎么搞呢？
+  四位就是两个两位基本单元的组合，前两位的值 + 后两位的值 = 新四位的值
+  	真实情况(x)	预想结果(y)	结果说明
+	0000		0000		前两位统计没有‘1’，后两位统计没有‘1’，最终结果0000，没有‘1’
+	0001		0001		前两位统计没有‘1’，后两位统计一个‘1’，最终结果0001，一个‘1’
+	0010		0010		前两位统计没有‘1’，后两位统计两个‘1’，最终结果0010，两个‘1’
+
+	0100  		0001		前两位统计一个‘1’，后两位统计没有‘1’，最终结果0001，一个‘1’
+	0101		0010		前两位统计一个‘1’，后两位统计一个‘1’，最终结果0010，两个‘1’
+ 	0110		0011		前两位统计一个‘1’，后两位统计两个‘1’，最终结果0011，三个‘1’
+
+	1000		0010		前两位统计两个‘1’，后两位统计没有‘1’，最终结果0010，两个‘1’
+	1001		0011		前两位统计两个‘1’，后两位统计一个‘1’，最终结果0011，三个‘1’
+	1010		0100		前两位统计两个‘1’，后两位统计两个‘1’，最终结果0100，四个‘1’
+  其实思路挺简单，前两位与后两位的值相加即可，相加的时候为了排除其他位的干扰，需要用上0x33333333
+  十六进制的0x3二进制表示为00 11 ，只有后两位有效
+  i & 0x33333333 		获取后两位的值；
+  (i >>> 2) & 0x33333333	获取前两位的值；
+  结果相加后，就是按四位统计后，‘1’的个数的结果
+  
+  之后按8位统计，思路与四位统计时一样，之后按16位统计，最后在32位范围内，前16位与后16位结果相加，得出结果
+  
+  最后为什么还有个 i & 0x3f;呢？
+  这是因为‘1’的个数最大也就是32位，在二进制中用6位即可表示，0x3f二进制位0011 1111，也就是数据只保留后六位
+  前面的数据全部不要。
+
+
+20.public static int rotateLeft(int i, int distance){  // 循环左移
+	return (i << distance) | (i >>> -distance);
+  }
+  public static int rotateRight(int i, int distance) {  // 循环右移
+        return (i >>> distance) | (i << -distance);
+  }
+  其中 i 是需要移动的数；distance 是移动的位数
+  所谓循环移位，是相对于普通的移位而言的，普通移位，比如左移2位，原来的最高两位就没有了，右边会补0，
+  而如果是循环左移两位，则原来的最高两位会移到最右边，就像一个左右相接的环一样
+
+  循环移位时，参数distance可以接受参数，当distance为负数时，这个等式是成立的，rotateLeft(i, distance) = ratateRight(i, -distance)
+  在移位的时候，如果distance小于0，会根据被移位长度进行转换，例如对int移位，那么-distance = (32 + distance) (distance < 0)
+  而对long移位，那么-distance = (64 + distance)(distance < 0);
+  清楚了上面一点，移位就不难理解了，以int循环左移为5位为例，数据 i 先左移5位，然后数据 i 向右边移27位，然后两部分进行或运算，从而得到结果
+
+
+21.public static int reverse(int i) {  // 将指定整数‘i’按位翻转
+	// HD, Figure 7-1
+        i = (i & 0x55555555) << 1 | (i >>> 1) & 0x55555555;	// 两位之间交换
+        i = (i & 0x33333333) << 2 | (i >>> 2) & 0x33333333;	// 四位之间分成两组，组之间进行交换	
+        i = (i & 0x0f0f0f0f) << 4 | (i >>> 4) & 0x0f0f0f0f;	// 八位之间分成两组，组之间进行交换
+        i = (i << 24) | ((i & 0xff00) << 8) |			// 此时，分成4个部分A、B、C、D，它们依次进行操作
+            ((i >>> 8) & 0xff00) | (i >>> 24);
+        return i;
+  }
+  上面的代码使用了移位和二分算法，从两位一组换位开始，一直到4位之间换位，一直到最后全部换位结束，下面就分析下具体换位思路。
+  十六进制0x5用二进制表示为01 01，从右至左数，相当于只允许奇数位有效，
+  十六进制0x3用二进制表示为00 11，从右至左数，相当于只允许四位中右边两位有效，
+  十六进制0x0f用二进制表示为0000 1111，从右只左数，相当于只允许8位中后四位有效。
+  
+  代码中的前三行，就是这样移位后进行换位的
+  最后一步，将32位分成4部分A、B、C、D，由于前面的操作，每一部分里面都完成了翻转，然后通过移位，完成整个二进制数的翻转
+
+
+22.public static int signum(int i) {	// 获取整数 i 的符号，负数返回-1，正数返回1，0则返回0
+	return (i >> 31) | (-i >>> 31);
+  }
+  如果i是正数，有符号右移31位后为0，-i无符号右移31位后为1，返回结果就为1
+  如果i是负数，有符号右移31位后为-1，-i无符号右移31位后为0，返回结果就为-1
+
+
+23.public static int reverseBytes(int i) {	// 按字符换位，也就是按八位一组进行换位
+        return ((i >>> 24)           ) |
+               ((i >>   8) &   0xFF00) |
+               ((i <<   8) & 0xFF0000) |
+               ((i << 24));
+   }
+  它的做法和reverse()中的最后一步是一样的
+
+
+
+
+最后，附上一点测试：
+		Integer t1 = new Integer(23);
+		Integer t2 = Integer.valueOf(23);
+		Integer t3 = Integer.parseInt("23");
+		System.out.println( t1 == t2);    // false
+		System.out.println( t1 == t3);    // false
+		System.out.println( t2 == t3);    // true
+		System.out.println(t1.equals(t2));// true
+   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
