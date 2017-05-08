@@ -13,9 +13,11 @@
 3.private final int value;
   这个是Integer底层的数据值，是私有的，final的，不可以改变，和String一样，当改了Integer的值，实际上就是一个新的Integer了。
 
+
 4.public Integer(int value);
   public Integer(String s);
   构造方法，其实不建议使用，要获取Integer数据类型，用Integer.valueOf()最好，可以使用Integer缓存
+
 
 5.public static String toString(int i , int radix);
   第一个参数为要转化为字符串的数字，第二个参数为进制数
