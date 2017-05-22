@@ -224,3 +224,73 @@
   更具体一点说，编号为0xD800到0xDBFF的称之为High Surrogate，共1024个，编号为0xDC00到0xDFFF的称之为Low Surrogate，
   也是1024个，它们两两组合出现，于是又多出了1048576种字符
   
+
+21.toChars系列方法
+  public static int toChars(int codePoint, char[] dst, int dstIndex) {
+        if (isBmpCodePoint(codePoint)) {  	// 如果指定的值在基本字符集中，直接将此值保存到dst数组中并返回“1”
+            dst[dstIndex] = (char) codePoint;
+            return 1;
+        } else if (isValidCodePoint(codePoint)) {	// 如果指定的值属于增补字符集中，则将两个值传递到dst中，并返回“2”
+            toSurrogates(codePoint, dst, dstIndex);
+            return 2;
+        } else {
+            throw new IllegalArgumentException();
+        }
+  }
+  下面一个方法与上面一个类似，不过上面返回的int值，dst数组是参数同时也保存传入的值，下面返回的就是传入的值，
+  public static char[] toChars(int codePoint) {
+        if (isBmpCodePoint(codePoint)) {	// 如果指定的值在基本字符集中，将此值的char[]数组返回
+            return new char[] { (char) codePoint };
+        } else if (isValidCodePoint(codePoint)) {	// 如果指定的值属于增补字符集中，分为两个值放入char[]数组之后返回
+            char[] result = new char[2];
+            toSurrogates(codePoint, result, 0);
+            return result;
+        } else {
+            throw new IllegalArgumentException();
+        }
+  }
+  这是其中将一个增补字符分为两个char，并且分别插入数组中的方法
+  static void toSurrogates(int codePoint, char[] dst, int index) {
+        // We write elements "backwards" to guarantee all-or-nothing
+        dst[index+1] = lowSurrogate(codePoint);
+        dst[index] = highSurrogate(codePoint);
+  }
+
+
+22.codePointCount系列方法
+  public static int codePointCount(CharSequence seq, int beginIndex, int endIndex) {
+	...
+        int n = endIndex - beginIndex;
+        for (int i = beginIndex; i < endIndex; ) {
+            if (isHighSurrogate(seq.charAt(i++)) && i < endIndex &&
+                isLowSurrogate(seq.charAt(i))) {
+                n--;
+                i++;
+            }
+        }
+        return n;
+  }
+  此方法以及与之类似的方法，作用都是检查指定字符串/字符数组中Unicode字符码的个数
+  默认字符个数是开始索引 - 末尾所以的差值，然后检查字符是否在增补字符集，在的就在默认字符个数基础上减一。
+
+
+23.之后就是一大堆的静态方法，每一个都非常简单，包括判断字符的类型，大小写转换，字符转为数字，获取字符类型等
+  不一而足，到用的时候看看就可以了
+  
+
+
+24.比较两个值得大小
+  public int compareTo(Character anotherCharacter) {
+        return compare(this.value, anotherCharacter.value);
+  }
+  public static int compare(char x, char y) {
+        return x - y;
+  }
+  注意，char的背后是Unicode，它们之间都可以根据自身的Unicode值进行加减比较
+
+25.reverseBytes方法
+  public static char reverseBytes(char ch) {
+        return (char) (((ch & 0xFF00) >> 8) | (ch << 8));
+  }
+  这实际上不是真正的按位翻转，而只是按字节翻转而已
+  
