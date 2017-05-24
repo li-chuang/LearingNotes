@@ -120,4 +120,36 @@
   注意，返回的数组是通过数据拷贝得到的，所以和原来的数据elementData没有关系，可以自由操作改动
   并且：
     这个方法是容器类型与数组类型之间的桥梁
+
+
+11.迭代器系统Iterator
+  public Iterator<E> iterator() {
+        return new Itr();
+  }
+  调用iterator()方法，返回的是Itr对象
+  private class Itr implements Iterator<E> {
+        int cursor;       // index of next element to return
+        int lastRet = -1; // index of last element returned; -1 if no such
+        int expectedModCount = modCount;
+
+        public boolean hasNext() {
+            return cursor != size;
+        }
+
+        @SuppressWarnings("unchecked")
+        public E next() {
+            checkForComodification();
+            int i = cursor;
+            if (i >= size)
+                throw new NoSuchElementException();
+            Object[] elementData = ArrayList.this.elementData;
+            if (i >= elementData.length)
+                throw new ConcurrentModificationException();
+            cursor = i + 1;
+            return (E) elementData[lastRet = i];
+        }
+	...
+  }
+  注意，这是一个私有内部类，只有它的外部类才有权访问它；
+  内部类的里面可以自由访问外部类的属性和方法，比如字节获取size值以及elementData数据
   
