@@ -120,9 +120,9 @@
             }
             assert left == right;			// 退出后，保证left与right集中在一处
 
-             // 此时，仍然能保证: pivot >= [lo, left) && pivot < [left,start)
-	     // 所以，pivot的值应当在left所在的位置，然后需要把[left,start)范围内的内容整体右移一位
-             // 腾出空间。如果pivot与区间中的某个值相等，left指正会指向重复的值的后一位，所以这里的排序是稳定的。
+            // 此时，仍然能保证: pivot >= [lo, left) && pivot < [left,start)
+	    // 所以，pivot的值应当在left所在的位置，然后需要把[left,start)范围内的内容整体右移一位
+            // 腾出空间。如果pivot与区间中的某个值相等，left指正会指向重复的值的后一位，所以这里的排序是稳定的。
             int n = start - left;  	// 需要移动的范围的长度
            
             switch (n) {		// switch语句是一条小优化，1-2个元素的移动就不需要System.arraycopy了。
@@ -134,4 +134,6 @@
             a[left] = pivot; 		// 移动过之后，把pivot的值放到应该插入的位置，就是left的位置了
         }
   }
-
+  举例说明：{3,6,7,8,2,4,9,1,5,10}
+  可知 lo = 0, start = 4, hight = 9 , pivot = a[start] = a[4] = 2
+  left与right是临时参数，负责二分查找，当left == right 时，此处就是pivot的位置
