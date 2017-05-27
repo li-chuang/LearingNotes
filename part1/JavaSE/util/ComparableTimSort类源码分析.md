@@ -137,3 +137,4 @@
   举例说明：{3,6,7,8,2,4,9,1,5,10}
   可知 lo = 0, start = 4, hight = 9 , pivot = a[start] = a[4] = 2
   left与right是临时参数，负责二分查找，当left == right 时，此处就是pivot的位置
+
