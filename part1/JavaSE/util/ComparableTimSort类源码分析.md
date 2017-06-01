@@ -137,6 +137,25 @@
   举例说明：{3,6,7,8,2,4,9,1,5,10}
   可知 lo = 0, start = 4, hight = 9 , pivot = a[start] = a[4] = 2
   left与right是临时参数，负责二分查找，当left == right 时，此处就是pivot的位置
-  
-  
 
+
+11.将run中降序部分优化为升序
+  返回值为 从首个元素开始的最长升序子序列的结尾位置+1
+    private static int countRunAndMakeAscending(Object[] a, int lo, int hi) {
+        assert lo < hi;		// 这里是一个断言，lo是低位索引，hi是高位索引的后一位
+        int runHi = lo + 1;	
+        if (runHi == hi)	// 注意，hi为序列索引高位的后一位
+            return 1;
+
+        // 从头到尾检查，如果有降序排序，则将之翻转为升序排序
+        if (((Comparable) a[runHi++]).compareTo(a[lo]) < 0) { // 降序
+            while (runHi < hi && ((Comparable) a[runHi]).compareTo(a[runHi - 1]) < 0)
+                runHi++;
+            reverseRange(a, lo, runHi);		// 确定降序的范围后翻转
+        } else {                                // 升序
+            while (runHi < hi && ((Comparable) a[runHi]).compareTo(a[runHi - 1]) >= 0)
+                runHi++;
+        }
+
+        return runHi - lo;	// runHi是一个相对值，相减后获得run中第一个升序排序的长度
+    }
