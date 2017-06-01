@@ -159,3 +159,76 @@
 
         return runHi - lo;	// runHi是一个相对值，相减后获得run中第一个升序排序的长度
     }
+
+
+12.将降序序列翻转为升序
+    private static void reverseRange(Object[] a, int lo, int hi) {
+        hi--;			// 这里再次强调，hi为序列最后一位的下一位，所以在使用的时候需要先前移一位
+        while (lo < hi) {
+            Object t = a[lo];	// 翻转的原理就是不断的换位
+            a[lo++] = a[hi];
+            a[hi--] = t;
+        }
+    }
+
+13.获取参与归并run的最短长度
+  返回指定长度数组的最小可接受run长度。如果自然排序的长度小于此长度，那么就通过二分查找排序扩展到此长度。
+  粗略的讲，计算结果是这样的：
+  a.如果 n < MIN_MERGE, 直接返回 n。（太小了，不值得做复杂的操作）；
+  b.如果 n 正好是2的幂，不断进行 n / 2 ，直到 n 小于 MIN_MERGE 为止；
+  c.其它情况下，不断进行 n/2 , 最后返回一个数 k，满足 MIN_MERGE/2 <= k <= MIN_MERGE,
+  这样结果就能保证 n/k 非常接近但小于一个2的幂。这个数字实际上是一种空间与时间的优化。
+    private static int minRunLength(int n) {		// 参数n 为参与排序的数组的长度
+        assert n >= 0;
+        int r = 0;      // 只要不是2的幂就会置1，是2的幂则 r = 0；其他时候 r = 1
+        while (n >= MIN_MERGE) {	// MIN_MERGE = 32 
+            r |= (n & 1);		// r = r | (n & 1) 注意这里的位运算，这导致 r 只能是0 或者 1。
+            n >>= 1;			// n = n >> 1 右移1位，这里相当于除以2
+        }
+        return n + r;
+    }
+
+
+14.将指定的升序序列压入等待合并的栈中
+    runBase 为升序序列的首个元素的位置
+    runLen  为升序序列的长度
+    private void pushRun(int runBase, int runLen) {
+        this.runBase[stackSize] = runBase;
+        this.runLen[stackSize] = runLen;
+        stackSize++;
+    }
+  
+
+15.检查栈中待归并的升序序列，如果他们不满足下列条件就把相邻的两个序列合并，直到他们满足下面的条件
+      a. runLen[i - 3] > runLen[i - 2] + runLen[i - 1]
+      b. runLen[i - 2] > runLen[i - 1]
+  每次添加新序列到栈中的时候都会执行一次这个操作。所以栈中的需要满足的条件需要靠调用这个方法来维护
+    private void mergeCollapse() {
+        while (stackSize > 1) {			// 栈中待归并的升序序列至少有2条
+            int n = stackSize - 2;
+            if (n > 0 && runLen[n-1] <= runLen[n] + runLen[n+1]) {	// 第二条，第三条之和大于第一条，
+                if (runLen[n - 1] < runLen[n + 1])			// 且第一条小于第三条，合并（标记为A）
+                    n--;
+                mergeAt(n);
+            } else if (runLen[n] <= runLen[n + 1]) {			// 第一条小于第二条，合并（标记为B）
+                mergeAt(n);
+            } else {							// 其他情况则不做处理（标记为C）
+                break; // Invariant is established
+            }
+        }
+    }
+  举例说明：
+  i.归并序列长度分别为13,8,6，则n = 1，n > 0 成立，13 <= 8 + 6 成立，但13 < 6 不成立，所以A处不符合，
+    8 < 6 不成立，所以B处不符合
+    最终此归并序列不做处理
+  ii.归并序列长度分别为13,6,8，则n = 1，n > 0 成立，13 <= 6 + 8 成立，但13 < 8 不成立，所以A处不符合，
+    6 < 8 成立，所以在B处会进行一次序列归并；
+    归并后，序列长度分别为13,14，A处自然不符合条件，
+    13 < 14 成立，所以在B处会进行一次序列归并；
+    归并后，序列长度为27
+
+  所以，总结下来说就是：
+  i.假如序列长度逐渐减小，如13,8,6,4...都不会做处理
+  ii.假如序列长度最后两位是升序的，形如...6,8，则B处会执行，
+  iii.假如序列最后一位的值特别大，大过了倒数第三位，形如...13,2,14，则A处会执行
+  
