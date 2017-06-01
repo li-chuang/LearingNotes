@@ -294,5 +294,74 @@
   获取第二个序列的首个元素可以插入到第一个序列的位置，换句话说，就是12可以插入到3，4, 5的后面
   获取第一个序列的最后一个元素可以插入到第二个序列的位置，也就是说85可以插入到96,97的前面
   综上所述，[3,4,5]在最前面，[96,97]在最后面，位置时确定的。剩下的是将[67,85]与[12,19]进行排序
-  中间部分合并成[12,19,67,85]后，将前后的序列加上，即完成了两个升序序列的合并了。
-  
+  中间部分合并成[12,19,67,85]后，将前后的序列加上，即完成了两个升序序列的合并。
+
+
+18.在一个序列中，将一个指定的key，从左往右查找它应当插入的位置。如果序列中存在与key相同的值(一个或者多个)，那返回这些值中最左边的位置。
+  参数说明：key   准备插入的key
+   	    a     参与排序的数组
+	    base  序列中第一个元素的位置
+	    len   序列的长度
+ 	    hint  开始查找的位置，有0 <= hint <= len;越接近结果查找越快
+  返回一个整数，表示它应该插入的位置
+    private static int gallopLeft(Comparable<Object> key, Object[] a, int base, int len, int hint) {
+        assert len > 0 && hint >= 0 && hint < len;
+
+        int lastOfs = 0;
+        int ofs = 1;
+        if (key.compareTo(a[base + hint]) > 0) {	// 遍历右边，直到 a[base+hint+lastOfs] < key <= a[base+hint+ofs]
+            int maxOfs = len - hint;
+            while (ofs < maxOfs && key.compareTo(a[base + hint + ofs]) > 0) {
+                lastOfs = ofs;
+                ofs = (ofs << 1) + 1;
+                if (ofs <= 0)   // int overflow
+                    ofs = maxOfs;
+            }
+            if (ofs > maxOfs)
+                ofs = maxOfs;
+
+            lastOfs += hint;			// 因为目前的offset是相对hint的，所以做相对变换
+            ofs += hint;
+        } else { // key <= a[base + hint]
+            // Gallop left until a[base+hint-ofs] < key <= a[base+hint-lastOfs]
+            final int maxOfs = hint + 1;
+            while (ofs < maxOfs && key.compareTo(a[base + hint - ofs]) <= 0) {
+                lastOfs = ofs;
+                ofs = (ofs << 1) + 1;
+                if (ofs <= 0)   // int overflow
+                    ofs = maxOfs;
+            }
+            if (ofs > maxOfs)
+                ofs = maxOfs;
+
+            // Make offsets relative to base
+            int tmp = lastOfs;
+            lastOfs = hint - ofs;
+            ofs = hint - tmp;
+        }
+        assert -1 <= lastOfs && lastOfs < ofs && ofs <= len;
+
+        /*
+         * Now a[base+lastOfs] < key <= a[base+ofs], so key belongs somewhere
+         * to the right of lastOfs but no farther right than ofs.  Do a binary
+         * search, with invariant a[base + lastOfs - 1] < key <= a[base + ofs].
+         */
+        lastOfs++;
+        while (lastOfs < ofs) {
+            int m = lastOfs + ((ofs - lastOfs) >>> 1);
+
+            if (key.compareTo(a[base + m]) > 0)
+                lastOfs = m + 1;  // a[base + m] < key
+            else
+                ofs = m;          // key <= a[base + m]
+        }
+        assert lastOfs == ofs;    // so a[base + ofs - 1] < key <= a[base + ofs]
+        return ofs;
+    }
+  举例如下：
+  两个升序序列[1,3,5,9] [4,6,10,11,12]
+  则 key = 9 ，第一个序列的最后一个值，看它可以插入到第二个序列的哪个位置
+     a = [1,3,5,9,4,6,10,11,12],也就是整个序列，所以在这里面需要用到相对位置，处理起来方便一些
+     base = 4，即第二个序列中的第一个元素
+     len = 5，即第二个序列的长度
+     hint = 8，即开始查找的位置，也就是12所处的位置
