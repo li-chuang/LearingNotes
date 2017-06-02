@@ -305,12 +305,13 @@
  	    hint  开始查找的位置，有0 <= hint <= len;越接近结果查找越快
   返回一个整数，表示它应该插入的位置
     private static int gallopLeft(Comparable<Object> key, Object[] a, int base, int len, int hint) {
-        assert len > 0 && hint >= 0 && hint < len;
+        assert len > 0 && hint >= 0 && hint < len;	// 断言各项参数符合条件
 
-        int lastOfs = 0;
-        int ofs = 1;
-        if (key.compareTo(a[base + hint]) > 0) {	// 遍历右边，直到 a[base+hint+lastOfs] < key <= a[base+hint+ofs]
-            int maxOfs = len - hint;
+        int lastOfs = 0;				// 上一个偏移位置
+        int ofs = 1;					// 当前偏移位置
+        if (key.compareTo(a[base + hint]) > 0) {	// key > a[base+hint], hint使用的时候设置为len-1,于是在这里a[base+hint]正好是最后一个元素
+	    // 遍历右边，直到 a[base+hint+lastOfs] < key <= a[base+hint+ofs]
+            int maxOfs = len - hint;			// 设置maxOfs最大偏移值
             while (ofs < maxOfs && key.compareTo(a[base + hint + ofs]) > 0) {
                 lastOfs = ofs;
                 ofs = (ofs << 1) + 1;
@@ -322,11 +323,11 @@
 
             lastOfs += hint;			// 因为目前的offset是相对hint的，所以做相对变换
             ofs += hint;
-        } else { // key <= a[base + hint]
-            // Gallop left until a[base+hint-ofs] < key <= a[base+hint-lastOfs]
-            final int maxOfs = hint + 1;
-            while (ofs < maxOfs && key.compareTo(a[base + hint - ofs]) <= 0) {
-                lastOfs = ofs;
+        } else { 	// key <= a[base + hint]
+            // 遍历左边，直到[base+hint-ofs] < key <= a[base+hint-lastOfs]
+            final int maxOfs = hint + 1;					// maxOfs = len = hint + 1 = 5
+            while (ofs < maxOfs && key.compareTo(a[base + hint - ofs]) <= 0) {	// a[base + hint]是最后一位，ofs是偏移位数，偏移从1开始
+                lastOfs = ofs;							// 即key与倒数第二位比较大小，然后依次比较
                 ofs = (ofs << 1) + 1;
                 if (ofs <= 0)   // int overflow
                     ofs = maxOfs;
@@ -334,18 +335,13 @@
             if (ofs > maxOfs)
                 ofs = maxOfs;
 
-            // Make offsets relative to base
-            int tmp = lastOfs;
+            int tmp = lastOfs;			// 因为目前的offset是相对hint的，所以做相对变换成相对于base的值
             lastOfs = hint - ofs;
             ofs = hint - tmp;
         }
         assert -1 <= lastOfs && lastOfs < ofs && ofs <= len;
 
-        /*
-         * Now a[base+lastOfs] < key <= a[base+ofs], so key belongs somewhere
-         * to the right of lastOfs but no farther right than ofs.  Do a binary
-         * search, with invariant a[base + lastOfs - 1] < key <= a[base + ofs].
-         */
+        // 现在的情况是 a[base+lastOfs] < key <= a[base+ofs], 所以，key应当在lastOfs的右边，又不超过ofs。在base+lastOfs-1到 base+ofs范围内做一次二叉查找。
         lastOfs++;
         while (lastOfs < ofs) {
             int m = lastOfs + ((ofs - lastOfs) >>> 1);
@@ -364,4 +360,16 @@
      a = [1,3,5,9,4,6,10,11,12],也就是整个序列，所以在这里面需要用到相对位置，处理起来方便一些
      base = 4，即第二个序列中的第一个元素
      len = 5，即第二个序列的长度
-     hint = 8，即开始查找的位置，也就是12所处的位置
+     hint = 4，即开始查找的位置，也就是12所处的位置
+
+  首先，key = 9 与 a[base + hint] = 12 比较,结果分成了两支，由于key < a[base + hint] ,我们先看后一支
+  然后，分支中 maxOfs = 5，再次判断key = 9 与 a[base + hint - ofs] 的大小，其中ofs是从“1”开始的偏移值
+     即最开始 key 与 a[8]比，然后进入这一支后开始与 a[7]比。符合条件，进入while中循环
+  再，while循环中，lastOfs = 1，ofs = 3，注意那个左移，相当于乘以2，此时还是满足while循环条件
+  再，while循环，key 与 a[5] = 6 比较，此时跳出while循环
+  再，对各个偏移值做修正，原来的值是倒数的，现在把这些值转化为正序
+     比如lastOfs = 1 表示上一个偏移值为倒数第二个数，ofs = 3 表示当前的偏移值为倒数第4个数
+     现在转为lastOfs = 1 ，ofs = 3，此时这些值都是基于base了。
+  再，之前划定返回，当前偏移值是通过上一个偏移值乘以2再加1获得的，之后需要在这两个偏移值中间找到具体的偏移位置
+  最后，在base+lastOfs-1到 base+ofs范围内做一次二叉查找，直到找到具体位置后返回。
+ 
