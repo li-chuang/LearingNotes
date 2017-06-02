@@ -372,4 +372,148 @@
      现在转为lastOfs = 1 ，ofs = 3，此时这些值都是基于base了。
   再，之前划定返回，当前偏移值是通过上一个偏移值乘以2再加1获得的，之后需要在这两个偏移值中间找到具体的偏移位置
   最后，在base+lastOfs-1到 base+ofs范围内做一次二叉查找，直到找到具体位置后返回。
- 
+
+  另外:gallopRight与gallopLeft相似，不同的是如果发现key的值与某些元素相等，那返回这些值最后一个元素的位置的后一个位置
+
+
+19.使用固定空间合并两个相邻的有序序列，保持数组的稳定性。
+  使用本方法之前保证第一个序列的首个元素大于第二个序列的首个元素；第一个序列的末尾元素大于第二个序列的所有元素
+  为了性能，这个方法在len1 <= len2的时候调用；它的姐妹方法mergeHi应该在len1 >= len2的时候调用。len1==len2的时候随便调用哪个都可以
+    private void mergeLo(int base1, int len1, int base2, int len2) {   		// 四个参数分别是各自序列的首地址和各自序列的长度
+        assert len1 > 0 && len2 > 0 && base1 + len1 == base2;
+
+        // 将第一个序列放到临时数组中
+        Object[] a = this.a; // For performance
+        Object[] tmp = ensureCapacity(len1);
+        System.arraycopy(a, base1, tmp, 0, len1);
+
+        int cursor1 = 0;       // 临时数组指针
+        int cursor2 = base2;   // 序列2的指针，参与归并的另一个序列
+        int dest = base1;      // 保存结果的指针
+
+        // 这里先把第二个序列的首个元素，移动到结果序列中的位置，然后处理那些不需要归并的情况
+        a[dest++] = a[cursor2++];
+	// 序列2只有一个元素的情况，把它移动到指定位置之后，剩下的临时数组中的所有序列1的元素全部copy到后面
+        if (--len2 == 0) {
+            System.arraycopy(tmp, cursor1, a, dest, len1);
+            return;
+        }
+	// 序列1只有一个元素的情况，把它移动到最后一个位置，为了不覆盖，先把序列2中的元素全部移走。
+	// 这个是因为序列1中的最后一个元素比序列2中的所有元素都大，这是该方法执行的条件
+        if (len1 == 1) {
+            System.arraycopy(a, cursor2, a, dest, len2);
+            a[dest + len2] = tmp[cursor1]; // Last elt of run 1 to end of merge
+            return;
+        }
+
+        int minGallop = this.minGallop;  // Use local variable for performance
+    outer:
+        while (true) {			// 这里加了两个值来记录一个序列连续比另外一个大的次数，根据此信息，可以做出一些优化
+            int count1 = 0; 		// 序列1 连续 比序列2大多少次
+            int count2 = 0; 		// 序列2 连续 比序列1大多少次
+
+            // 这里是直接的归并算法的合并的部分，这里会统计count1合count2,如果其中一个大于一个阈值，就会跳出循环
+            do {
+                assert len1 > 1 && len2 > 0;
+                if (((Comparable) a[cursor2]).compareTo(tmp[cursor1]) < 0) {
+                    a[dest++] = a[cursor2++];
+                    count2++;
+                    count1 = 0;
+                    if (--len2 == 0)		// 序列2没有元素了就跳出整次合并
+                        break outer;
+                } else {
+                    a[dest++] = tmp[cursor1++];
+                    count1++;
+                    count2 = 0;
+                    if (--len1 == 1)		// 如果序列1只剩下最后一个元素了就可以跳出循环
+                        break outer;
+                }
+            } while ((count1 | count2) < minGallop);	// 这个判断相当于 count1 < minGallop && count2 <minGallop 因为count1和count2总有一个为0
+
+ 	    // 执行到这里的话，一个序列会连续的的比另一个序列大，那么这种连续性可能持续的更长。那么我们就按照这个逻辑试一试。
+	    // 直到这种连续性被打破。根据找到的长度，直接连续的copy就可以了，这样可以提高copy的效率。
+            do {
+                assert len1 > 1 && len2 > 0;
+                count1 = gallopRight((Comparable) a[cursor2], tmp, cursor1, len1, 0);
+                if (count1 != 0) {
+                    System.arraycopy(tmp, cursor1, a, dest, count1);
+                    dest += count1;
+                    cursor1 += count1;
+                    len1 -= count1;
+                    if (len1 <= 1)  // len1 == 1 || len1 == 0
+                        break outer;
+                }
+                a[dest++] = a[cursor2++];
+                if (--len2 == 0)
+                    break outer;
+
+                count2 = gallopLeft((Comparable) tmp[cursor1], a, cursor2, len2, 0);
+                if (count2 != 0) {
+                    System.arraycopy(a, cursor2, a, dest, count2);
+                    dest += count2;
+                    cursor2 += count2;
+                    len2 -= count2;
+                    if (len2 == 0)
+                        break outer;					// 跳出outer标签所标识的循环 ，内层循环继续
+                }
+                a[dest++] = tmp[cursor1++];
+                if (--len1 == 1)
+                    break outer;					// outer就是一个名字，使用其他的名字也是可以的
+                minGallop--;
+            } while (count1 >= MIN_GALLOP | count2 >= MIN_GALLOP);	// 如果连续性还是很大的话，继续这样处理s
+            if (minGallop < 0)
+                minGallop = 0;
+            minGallop += 2;  						// 同样，这里如果跳出了那段循环，就证明数据的顺序程度不好，应当增加阈值，避免浪费资源
+        }  								// End of "outer" loop，outer可以看做是一个名字，break跳出这个循环
+        this.minGallop = minGallop < 1 ? 1 : minGallop;  // Write back to field
+
+        if (len1 == 1) {
+            assert len2 > 0;
+            System.arraycopy(a, cursor2, a, dest, len2);
+            a[dest + len2] = tmp[cursor1]; //  Last elt of run 1 to end of merge
+        } else if (len1 == 0) {
+            throw new IllegalArgumentException(
+                "Comparison method violates its general contract!");
+        } else {
+            assert len2 == 0;
+            assert len1 > 1;
+            System.arraycopy(tmp, cursor1, a, dest, len1);
+        }
+    }
+
+
+20.保证临时数组的大小能够容纳所有的临时元素，在需要的时候要扩展临时数组的大小。数组的大小程指数增长，来保证线性的复杂度
+  一次申请步长太小，申请的次数必然会增多，浪费时间；一次申请的空间足够大，必然会浪费空间。正常情况下，归并排序的临时空间每次大的合并都会 * 2，
+  最大长度不会超过数组长度的1/2。 这个长度于2 有着紧密的联系。
+    private Object[]  ensureCapacity(int minCapacity) {		// minCapacity 临时数组需要的最小空间
+        if (tmp.length < minCapacity) {				// 如果临时数组长度不够，那需要重新计算临时数组长度；如果长度够，直接返回当前临时数组
+            // Compute smallest power of 2 > minCapacity
+            int newSize = minCapacity;
+            newSize |= newSize >> 1;
+            newSize |= newSize >> 2;
+            newSize |= newSize >> 4;
+            newSize |= newSize >> 8;
+            newSize |= newSize >> 16;
+            newSize++;
+
+            if (newSize < 0) // Not bloody likely!
+                newSize = minCapacity;
+            else
+                newSize = Math.min(newSize, a.length >>> 1);
+
+            @SuppressWarnings({"unchecked", "UnnecessaryLocalVariable"})
+            Object[] newArray = new Object[newSize];
+            tmp = newArray;
+        }
+        return tmp;
+    }
+  这里是计算最小的大于minCapacity的2的幂。方法不常见，这里分析一下。
+  假设有无符号整型 k,它的字节码如下：
+  	00000000 10000000 00000000 00000000  k
+        00000000 11000000 00000000 00000000  k |= k >> 1;
+        00000000 11110000 00000000 00000000  k |= k >> 2;
+        00000000 11111111 00000000 00000000  k |= k >> 4;
+        00000000 11111111 11111111 00000000  k |= k >> 8;
+        00000000 11111111 11111111 11111111  k |= k >> 16
+  上面的移位事实上只跟最高位有关系，移位的结果是最高位往后的bit全部变成了1
+  最后 k++ 的结果 就是刚好是比 minCapacity 大的2的幂
