@@ -130,3 +130,69 @@
         modCount++;
         return element;		// 返回删除值
   }
+ 
+
+9.删除指定的节点
+  E unlink(Node<E> x) {		// 确保 x != null;
+        final E element = x.item;
+        final Node<E> next = x.next;	// 获得指定节点的前一个节点与后一个节点
+        final Node<E> prev = x.prev;
+
+        if (prev == null) {
+            first = next;
+        } else {
+            prev.next = next;		// 将前一个节点的next指针指向下一个节点next
+            x.prev = null;
+        }
+
+        if (next == null) {
+            last = prev;
+        } else {
+            next.prev = prev;		// 将后一个节点的prev指针指向前一个节点prev
+            x.next = null;
+        }
+
+        x.item = null;			// 先切断x节点的所有指针，然后将节点的数据值设置为null
+        size--;
+        modCount++;
+        return element;
+  }
+
+10.获取first与last的值
+  public E getFirst() {			// 获取第一个节点的数据值
+        final Node<E> f = first;	// 注意，first是一个特殊节点，此节点一直都存在，并且一直都是双向链表的第一个节点
+        if (f == null)
+            throw new NoSuchElementException();
+        return f.item;
+  }
+  public E getLast() {			// 获取最后一个节点的数据值
+        final Node<E> l = last;		// 注意，同first一样，last也是一个特殊节点，此节点一直都存在，且一直是双向链表的最后一个节点
+        if (l == null)
+            throw new NoSuchElementException();
+        return l.item;
+  }
+
+11.添加首部/尾部值与移除首部/尾部值
+  removeFirst、removeLast、addFirst、addLast、add、remove都是在上面方法的基础上的封装，它们都是public访问权限的
+  public E removeFirst() {
+        final Node<E> f = first;
+        if (f == null)
+            throw new NoSuchElementException();
+        return unlinkFirst(f);
+  }
+  public void addFirst(E e) {
+        linkFirst(e);
+  }
+  这些都是开放的接口，可以供外界使用
+
+
+12.将列表转换为数组
+  public Object[] toArray() {
+        Object[] result = new Object[size];
+        int i = 0;
+        for (Node<E> x = first; x != null; x = x.next)
+            result[i++] = x.item;
+        return result;
+  }
+  可以看到，转换的核心是一个for循环，通过这个for循环给数组赋值
+
