@@ -1,0 +1,29 @@
+1.TimSort算法概况
+  TimSort算法是一种起源于归并排序和插入排序的混合排序算法，对归并排序做了大量的优化。
+  jdk1.7之后，Arrays类中的sort方法有一个分支判断，当LegacyMergeSort.userRequested为true的情况下，采用legacyMergeSort，否则采用ComparableTimSort。
+  并且在legacyMergeSort的注释上标明了该方法会在以后的jdk版本中废弃，因此以后Arrays类中的sort方法将采用ComparableTimSort类中的sort方法。
+
+
+2.TimSort排序算法实现过程
+  (1)传入的待排序数组若小于阈值MIN_MERGE(Java中为32)，则调用binarySort,这是一个不包含合并操作的mini-TimSort
+    a)从数组开始处找到一组严格升序或严格降序(找到后翻转)的数
+    b)Binary Sort:使用二分查找的方法将后续的数插入之前的已排序数组，binarySort对数组a[lo:hi]进行排序，并且a[lo:start]是已经排序好的。
+      算法的思路是对a[start:hi]中的元素，每次使用binarySearch为它在a[lo:start]中找到相应的位置，并插入。
+  (2)开始真正的TimSort过程：
+    (2.1)选取minRun大小，之后待排序数组将被分成以minRun大小为区块的一块块子数组
+       a)如果数组大小为2的N次幂，则返回16(MIN_MERGE/2)
+       b)其他情况下，逐位向右位移（即除以2），直到找到介于16和32间的一个数
+    (2.2)do-while
+       (2.2.1)找到初始的一组升序数列，countRunAndAscending会找到一个run，这个run必须是已经排序好的，并且函数会保证它为升序，也就是是说，如果找到的
+              是一个降序的，会对其进行翻转。
+       (2.2.2)若这组区块run长度小于minRun，则将后续的数补足，利用binarySort对run进行扩展，并且扩展后，run仍然是有序的。
+       (2.2.3)当前的run位于a[lo:runLen]，将其入栈ts.pushRun(lo, runLen);//为后续merge各区块作准备：记录当前已排序的各区块的大小
+       (2.2.4)对当前的各区块进行merge，merge会满足一下原则（假设X,Y,Z为相邻的三个区块）
+           a)只对相邻的区块merge
+           b)若当前区块数仅为2，如果 X <= Y,将X和Y merge
+	   c)若当前区块数>=3，如果 X <= Y+Z，将X和Y merge，直到同时满足X > Y+Z和Y > Z（可推导得到稳定情况为 X > Y > Z）
+	   由于要合并的两个run是已经排序的，所以合并的时候，会有特别的技巧。假设两个run是run1，run2，先用gallopRight在run1里使用binarySearch查找run2
+     	   首元素的位置k，那么run1中k前面的元素就是合并后最小的那些元素。然后，在run2中查找run1尾元素的位置len2，那么run2中len2后面的那些元素就是合并
+ 	   后最大的那些元素。最后，根据len1与len2大小，调用mergeLo或者mergeHi将剩余元素合并
+       (2.2.5)重复2.2.1-2.2.4，直到将待排序数组排序完
+       (2.2.6)最终合并Final Merge，如果此时还有区块未合并，则merge它们  	
