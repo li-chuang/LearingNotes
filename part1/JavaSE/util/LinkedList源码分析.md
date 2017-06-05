@@ -65,7 +65,68 @@
         linkFirst(e);
   }
 
+
+6.向后插入双向链表
+  void linkLast(E e) {
+        final Node<E> l = last;
+        final Node<E> newNode = new Node<>(l, e, null);
+        last = newNode;
+        if (l == null)
+            first = newNode;
+        else
+            l.next = newNode;
+        size++;
+        modCount++;
+  }
+  注意，last是尾部节点，向尾部插入的时候，需要把last对像置换出来，不然此对象就会埋没在链表中了。
+  与向前插入差不多，向后插入的时候也需要专门将last节点先保存在一个临时节点中，当将新节点赋值到last节点后，再将临时节点的指针
+    指向尾部节点last。
+  
+  向后插入是双向链表的默认插入方式，很多方法都是基于此方法实现的。
   
 
+7.插入数据到链表指定的节点之前
+  void linkBefore(E e, Node<E> succ) {		// 需要确保succ != null
+        final Node<E> pred = succ.prev;
+        final Node<E> newNode = new Node<>(pred, e, succ);
+        succ.prev = newNode;
+        if (pred == null)
+            first = newNode;
+        else
+            pred.next = newNode;
+        size++;
+        modCount++;
+  }
+  这就是一个标准的双向链表节点插入；
 
 
+8.删除非空的首部节点
+  private E unlinkFirst(Node<E> f) { 	// 确保f节点为首部节点，并且f节点不为空节点，即f == first && f != null;
+        final E element = f.item;
+        final Node<E> next = f.next;
+        f.item = null;
+        f.next = null; 
+        first = next;		// 原来首部节点的下一个节点现在赋值为首部节点
+        if (next == null)
+            last = null;
+        else
+            next.prev = null;	// 首部节点的前向指针为空，前面已经没有节点了。
+        size--;
+        modCount++;
+        return element;		// 返回删除值
+  }
+  删除非空的尾部节点，与此非常的类似
+  private E unlinkLast(Node<E> l) {	// 确保l节点为尾部节点，且不为空，即l == last && l != null;
+        final E element = l.item;
+        final Node<E> prev = l.prev;
+        l.item = null;
+        l.prev = null; 
+        last = prev;		// 原来尾部节点的上一个节点现在接替为尾部节点，
+        if (prev == null)
+            first = null;
+        else
+            prev.next = null;	// 尾部节点没有下一个节点
+        size--;
+        modCount++;
+        return element;		// 返回删除值
+  }
