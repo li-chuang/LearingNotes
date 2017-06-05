@@ -25,6 +25,11 @@
   transient Node<E> first;
   transient Node<E> last;
   注意，按照C中的说法它们是指针指向前后两个节点的指针，不过在Java中，它们被认为是两个对象，对象的类型就是Node<E>
+  头部节点与尾部节点在链表中是特殊节点，不仅仅用来存储数据，而且用来作为查询、插入、删除逻辑的起始点进行操作，
+  所以，first与last是一种标签，它们才是操作点，插入的其它节点都需要迎合first与last的要求：
+  当链表为空的时候，first与last节点自然也是为空的，即first == null && last == null
+  当链表不为空的时候，first作为头部节点，前向指针为空，即first.prev == null && first.item != null
+      同理，last作为尾部节点，后向指针自然也是空的，即last.next == null && last.item != null
 
 
 4.构造方法
@@ -34,9 +39,32 @@
         this();
         addAll(c);
   }
-  
-  
-  
+
+
+5.向前插入双向链表
+  private void linkFirst(E e) {
+        final Node<E> f = first;
+        final Node<E> newNode = new Node<>(null, e, f);
+        first = newNode;
+        if (f == null)
+            last = newNode;
+        else
+            f.prev = newNode;
+        size++;
+        modCount++;
+  }
+  说明：数据需要插入到链表的最前端，首先，原来在头部的数据要转移到临时节点f中，节点f中保存的是上一个头部节点的数据，
+    然后创建一个新的节点，将数据“e”放入其中，并且将尾部指针指向原来的数据节点f，
+    再用新的节点对first节点进行赋值，
+    此后进行判断，如果原来的节点f == null，则说明之前节点为空，没有装数据，这是插入的第一个值，于是把头尾设置为一样的
+      如果f节点有值，first节点的数据被替换后，原来的临时节点的数据转正，将f的前部指针指向新的数据。
+    最后，更新长度。
+
+  注意，这个方法是私有的，其他的方法调用此方法完成节点的插入，例如：
+  public void addFirst(E e) {
+        linkFirst(e);
+  }
+
   
 
 
