@@ -1,6 +1,5 @@
 1.ComparableTimSort与TimSort几乎重复，唯一不同的地方在于去掉了TimSort中的比较器
 
-
 2.private static final int MIN_MERGE = 32；
   这是能够使序列合并的最小值，比这个更短的需要使用二分插入排序使序列加长，如果整个的数组都比这个短，
   那么将不执行合并操作。
