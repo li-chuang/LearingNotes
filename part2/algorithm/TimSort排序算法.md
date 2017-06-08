@@ -76,9 +76,9 @@
 	当前的栈区块为[8,2,5]
 
   => 进入merge循环(2.2.4)
-	因为不满足runLen[0] <= runLen[1] + runLen[2]，所以不对run1与run2进行merge
-	因为满足runLen[1] <= runLen[2]，所以对run2与run3进行merge
-	1)gallopRight：发现run2与run3就已经排序好了
+	因为不满足runLen[0] <= runLen[1] + runLen[2]，所以不对run0与run1进行merge
+	因为满足runLen[1] <= runLen[2]，所以对run1与run2进行merge
+	1)gallopRight：发现run1与run2就已经排序好了
 	完成之后的结果：
 	  [1,2,5,6,7,8,10,12] [3,4,9,11,13,15,16] [14] 
 
@@ -94,3 +94,26 @@
 
   => 入栈(2.2.3)
 	当前入栈的区块大小为[8,7,1]
+	因为runLen[0] <= runLen[1] + runLen[2]，所以要进行合并
+	因为runLen[0] > runLen[2]，所以将run1和run2先合并（否则将run0与run1先合并）。
+	1)gallopRight：
+	2)gallopLeft：
+	这样需要排序的元素剩下[13,15][14]，然后进行mergeHi
+	完成之后的结果：
+	  [1,2,5,6,7,8,10,12] [3,4,9,11,13,14,15,16] 
+
+  => 入栈(2.2.3)
+	当前入栈的区块大小为[8,8]
+
+  => 进入merge循环(2.2.4)
+	因为runLen[0] <= runLen[1]，继续merge
+	1)gallopRight：
+	2)gallopLeft：
+	需要排序的元素剩下[5,6,7,8,10,12]与[3,4,9,11]，然后进行mergeHi
+	完成之后的结果：
+	  [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16] 当前入栈的区块大小为[16] 
+
+  => 不需要final merge(2.2.6)
+	因为当前栈大小为1
+
+  => 结束
