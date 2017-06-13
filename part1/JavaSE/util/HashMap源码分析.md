@@ -42,3 +42,19 @@
   注意，映射表的底层是用Entry记录实现的，所以要实现一个长度为capacity的Entry数组
 
 
+5.hash()方法，检索对象或者向结果hash中追加hashCode，避免遇到冲突
+    final int hash(Object k) {
+        int h = hashSeed;
+        if (0 != h && k instanceof String) {
+            return sun.misc.Hashing.stringHash32((String) k);
+        }
+
+        h ^= k.hashCode();
+
+        h ^= (h >>> 20) ^ (h >>> 12);
+        return h ^ (h >>> 7) ^ (h >>> 4);
+    }
+  说明：
+    1.首先，假如你确信代码不需要修改，或者觉得别人修改后效果更差，可以使用final修饰符，这样此代码就不可以被继承重写
+    2.'^'为异或运算，对同一个字符进行两次异或运算就会回到原来的值。
+	假设key.hashCode()的值为：0x7FFFFFFF，table.length为默认值16，算法执行如下
