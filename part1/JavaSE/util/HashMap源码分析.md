@@ -49,9 +49,9 @@
             return sun.misc.Hashing.stringHash32((String) k);
         }
 
-        h ^= k.hashCode();
+        h ^= k.hashCode();		// 一次散列，调用k的hashCode方法，与hashSeed做异或操作
 
-        h ^= (h >>> 20) ^ (h >>> 12);
+        h ^= (h >>> 20) ^ (h >>> 12);	// 二次散列
         return h ^ (h >>> 7) ^ (h >>> 4);
     }
   说明：
