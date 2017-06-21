@@ -81,3 +81,52 @@
 	经过hash函数处理后，0x0ABC0000变为0x0A02188B，0x0DEF0000变为0x0D2AFC70,它们的下标不再是清一色的“0”了。
     d.至于这个“扰动函数”为什么要这样写，可以参见：
 	http://www.cnblogs.com/killbug/p/4560000.html
+
+
+6.HashMap的底层是用Entry实体类来实现的
+    static class Entry<K,V> implements Map.Entry<K,V> {		//注意，这是一个静态内部类，所以是用的Map.Entry这样的写法
+        final K key;		// 保存“键”
+        V value;		// 保存“值”
+        Entry<K,V> next;	// 所有哈希地址相同的元素构成一个称为同义词链的单链表，这里是实现同义词单链表的核心
+        int hash;
+
+        Entry(int h, K k, V v, Entry<K,V> n) {
+            value = v;
+            next = n;
+            key = k;
+            hash = h;
+        }
+
+	...
+
+        public final boolean equals(Object o) {
+            if (!(o instanceof Map.Entry))
+                return false;
+            Map.Entry e = (Map.Entry)o;
+            Object k1 = getKey();
+            Object k2 = e.getKey();
+            if (k1 == k2 || (k1 != null && k1.equals(k2))) {
+                Object v1 = getValue();
+                Object v2 = e.getValue();
+                if (v1 == v2 || (v1 != null && v1.equals(v2)))
+                    return true;
+            }
+            return false;
+        }
+
+        public final int hashCode() {
+            return Objects.hashCode(getKey()) ^ Objects.hashCode(getValue());	// key与value的hashcode然后再异或生成新hashcode
+        }
+
+        public final String toString() {
+            return getKey() + "=" + getValue();
+        }
+
+        ...
+    }
+  Entry是HashMap中的基本单元，可以看做是“链地址法”中的同义词链。
+  当有一个key-value对需要插入的时候，首先计算key的hashcode值，然后通过indexFor()方法映射到不同的存储地址，并组建一个Entry链节点，
+  假如未来有key-value对有相同的hashcode，则它们的存储地址将与前面的一样，生成一个Entry链节点后组成一个单链表。
+  最后，所有hashcode/存储地址一致的元素构成一个称为同义词链的单链表。
+  而在查询的时候，首先计算key的hashcode，然后根据这个hashcode，找到与此对应的单链表，如果单链表中有多个值，然后再进行value的比较，
+  返回value一致的元素。
