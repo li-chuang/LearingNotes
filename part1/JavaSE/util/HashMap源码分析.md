@@ -132,7 +132,7 @@
   返回value一致的元素。
 
 
-7.获取key映射的值value
+7.get方法，获取key映射的值value
     public V get(Object key) {
         if (key == null)
             return getForNullKey();
@@ -173,18 +173,18 @@
 
 
 
-8.存放键值对key-value
+8.put方法，存放键值对key-value
     public V put(K key, V value) {
         if (table == EMPTY_TABLE) {
             inflateTable(threshold);
         }
         if (key == null)
-            return putForNullKey(value);	// key == null的情况
+            return putForNullKey(value);	// key == null的情况专门进行处理，默认放在“桶”的第一个位置，索引为“0”
         int hash = hash(key);
-        int i = indexFor(hash, table.length);
-        for (Entry<K,V> e = table[i]; e != null; e = e.next) {
+        int i = indexFor(hash, table.length);	// 获取散列码后用“掩码”进行处理，得到其在“桶”的位置
+        for (Entry<K,V> e = table[i]; e != null; e = e.next) {		// 找到在“桶”中的位置后，顺着同义词单链表进行处理
             Object k;
-            if (e.hash == hash && ((k = e.key) == key || key.equals(k))) {
+            if (e.hash == hash && ((k = e.key) == key || key.equals(k))) {	// 如果key 一致，则用后面的value替换前面的value
                 V oldValue = e.value;
                 e.value = value;
                 e.recordAccess(this);
@@ -192,7 +192,7 @@
             }
         }
         modCount++;
-        addEntry(hash, key, value, i);
+        addEntry(hash, key, value, i);		// 将键值对存入同义词单链表中
         return null;
     }
   假如键值对中有key == null的情况，则使用putForNullKey()方法进行处理，专门用来存入key == null的键值对
@@ -223,4 +223,72 @@
         Entry<K,V> e = table[bucketIndex];			// 将原来“桶”的位置腾出来，新节点的 next 将指向这个节点
         table[bucketIndex] = new Entry<>(hash, key, value, e);	// 然后将一个新的单链表节点赋值给这个“桶”，有点类似于头部插入
         size++;
+    }
+  另外还有putAll()方法，底层实现还是用的put()，外面再用for进行循环操作
+
+
+9.containsKey方法，判断是否有指定key的映射，有则返回TRUE
+    public boolean containsKey(Object key) {
+        return getEntry(key) != null;
+    }
+  其中的重点是getEntry方法，前面已经对此方法有过说明，先获取散列码，然后通过“掩码”获取在“桶”中的位置，最后顺着同义词单链表
+  依次比对，比对成功了就返回值，不成功则返回null
+
+
+10.containsValue方法，判断HashMap的所有值中是否有一个指定的value
+    public boolean containsValue(Object value) {
+        if (value == null)
+            return containsNullValue();
+
+        Entry[] tab = table;
+        for (int i = 0; i < tab.length ; i++)
+            for (Entry e = tab[i] ; e != null ; e = e.next)
+                if (value.equals(e.value))
+                    return true;
+        return false;
+    }
+  当value == null的时候，需要特殊处理
+    private boolean containsNullValue() {
+        Entry[] tab = table;					// 获得所有的“桶”
+        for (int i = 0; i < tab.length ; i++)
+            for (Entry e = tab[i] ; e != null ; e = e.next)	// 依次查询同义词单链表上的所有value是否有等于null的
+                if (e.value == null)
+                    return true;
+        return false;
+    }
+
+
+11.remove方法，删除指定key的映射
+    public V remove(Object key) {
+        Entry<K,V> e = removeEntryForKey(key);
+        return (e == null ? null : e.value);	// 返回删除值，注意，HashMap中的所有操作都是以Entry为基础的。
+    }
+  此方法很简单，不过其中的重点是在下面这个方法中，
+    final Entry<K,V> removeEntryForKey(Object key) {
+        if (size == 0) {				// size == 0，即表示没有值可供删除，直接返回null
+            return null;
+        }
+        int hash = (key == null) ? 0 : hash(key);	// 获取散列码，key == null的情况散列码照例是“0”
+        int i = indexFor(hash, table.length);		// 散列码通过“掩码”的处理，获取在“桶”中的位置
+        Entry<K,V> prev = table[i];
+        Entry<K,V> e = prev;
+
+        while (e != null) {				// 这里是一个链表节点删除的过程
+            Entry<K,V> next = e.next;
+            Object k;
+            if (e.hash == hash &&
+                ((k = e.key) == key || (key != null && key.equals(k)))) {	// 散列码一样，key一致，删
+                modCount++;
+                size--;
+                if (prev == e)
+                    table[i] = next;
+                else
+                    prev.next = next;
+                e.recordRemoval(this);
+                return e;
+            }
+            prev = e;
+            e = next;
+        }
+        return e;
     }
