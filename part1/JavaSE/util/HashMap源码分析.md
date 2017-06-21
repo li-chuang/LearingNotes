@@ -42,7 +42,7 @@
   注意，映射表的底层是用Entry记录实现的，所以要实现一个长度为capacity的Entry数组
 
 
-5.hash()方法，检索对象或者向结果hash中追加hashCode，避免遇到冲突
+5.hash()方法，获取散列码
     final int hash(Object k) {
         int h = hashSeed;
         if (0 != h && k instanceof String) {
@@ -105,10 +105,10 @@
             Map.Entry e = (Map.Entry)o;
             Object k1 = getKey();
             Object k2 = e.getKey();
-            if (k1 == k2 || (k1 != null && k1.equals(k2))) {
+            if (k1 == k2 || (k1 != null && k1.equals(k2))) {	// 先比较key是否一致，key代表着存储地址
                 Object v1 = getValue();
                 Object v2 = e.getValue();
-                if (v1 == v2 || (v1 != null && v1.equals(v2)))
+                if (v1 == v2 || (v1 != null && v1.equals(v2)))	// 然后再比较value是否一致，都在同义词链表上，则比较具体值
                     return true;
             }
             return false;
@@ -130,3 +130,97 @@
   最后，所有hashcode/存储地址一致的元素构成一个称为同义词链的单链表。
   而在查询的时候，首先计算key的hashcode，然后根据这个hashcode，找到与此对应的单链表，如果单链表中有多个值，然后再进行value的比较，
   返回value一致的元素。
+
+
+7.获取key映射的值value
+    public V get(Object key) {
+        if (key == null)
+            return getForNullKey();
+        Entry<K,V> entry = getEntry(key);
+
+        return null == entry ? null : entry.getValue();
+    }
+  这是十分平常的get(key)方法，但因为一些特殊情况需要处理，所以需要特别注意下
+  首先就是 key == null 的情况，在HashMap中，key == null 是允许的，null key 默认映射到索引为“0”处，所以当key == null的时候还是需要
+  仔细的区分，可能这个 key 就是没有值的，也可能这个key == null，同时映射有值value，它们这样放入： put(null, "something!!");
+    private V getForNullKey() {
+        if (size == 0) {		// key == null ,且 size == 0，确实没有值，返回 null
+            return null;
+        }
+        for (Entry<K,V> e = table[0]; e != null; e = e.next) {	// key == null 的数据默认放入哈希地址为“0”的索引处
+            if (e.key == null)					// 然后在此索引对应的同义词链表上挨个进行寻找，寻找e.key == null的
+                return e.value;				// 假如确实有key == null ,返回value == “something!!”
+        }
+        return null;					// 如果没有key == null ，返回 null
+    }
+  key == null 这个特殊情况处理之后，进入正式的通过key 取 value流程，
+    final Entry<K,V> getEntry(Object key) {
+        if (size == 0) {
+            return null;
+        }
+        int hash = (key == null) ? 0 : hash(key);	// 注意这里，key == null，hash值返回“0”，其他情况则按照流程获取散列码
+        for (Entry<K,V> e = table[indexFor(hash, table.length)];	// 通过此散列码，找出符合条件的元素在Entry数组的哪个位置
+             e != null;
+             e = e.next) {		// 找到地址，就是找到了同义词链表的入口，然后一路向下比对即可
+            Object k;
+            if (e.hash == hash &&
+                ((k = e.key) == key || (key != null && key.equals(k))))		// 找到 key 一致的元素
+                return e;
+        }
+        return null;
+    }	
+  最后，返回此key映射的value。	
+
+
+
+8.存放键值对key-value
+    public V put(K key, V value) {
+        if (table == EMPTY_TABLE) {
+            inflateTable(threshold);
+        }
+        if (key == null)
+            return putForNullKey(value);	// key == null的情况
+        int hash = hash(key);
+        int i = indexFor(hash, table.length);
+        for (Entry<K,V> e = table[i]; e != null; e = e.next) {
+            Object k;
+            if (e.hash == hash && ((k = e.key) == key || key.equals(k))) {
+                V oldValue = e.value;
+                e.value = value;
+                e.recordAccess(this);
+                return oldValue;
+            }
+        }
+        modCount++;
+        addEntry(hash, key, value, i);
+        return null;
+    }
+  假如键值对中有key == null的情况，则使用putForNullKey()方法进行处理，专门用来存入key == null的键值对
+    private V putForNullKey(V value) {
+        for (Entry<K,V> e = table[0]; e != null; e = e.next) {	// 与前面的一样，key == null的值照例是存放在table[0]处的
+            if (e.key == null) {		
+                V oldValue = e.value;		// 如果有一个单链表节点key == null，则用后面的value取代前面的value
+                e.value = value;
+                e.recordAccess(this);
+                return oldValue;
+            }
+        }
+        modCount++;
+        addEntry(0, null, value, 0);		// 此处的hash是散列码，经过“掩码”处理后得到在存储表中位置，由于key == null
+        return null;				// 散列码也默认是“0”,在“桶”中的索引也默认是“0”
+    }
+  前面还只是铺垫，下面才是真正的将键值对key-value存入同义词单链表节点中
+    void addEntry(int hash, K key, V value, int bucketIndex) {
+        if ((size >= threshold) && (null != table[bucketIndex])) {	// 此处在扩容
+            resize(2 * table.length);
+            hash = (null != key) ? hash(key) : 0;
+            bucketIndex = indexFor(hash, table.length);		// 散列码通过“掩码”处理后，剩下的就是存储地址
+        }
+        createEntry(hash, key, value, bucketIndex);		// 创建一个单链表节点，将数据存入
+    }
+  数据存入单链表节点的具体实现如下所示
+    void createEntry(int hash, K key, V value, int bucketIndex) {
+        Entry<K,V> e = table[bucketIndex];			// 将原来“桶”的位置腾出来，新节点的 next 将指向这个节点
+        table[bucketIndex] = new Entry<>(hash, key, value, e);	// 然后将一个新的单链表节点赋值给这个“桶”，有点类似于头部插入
+        size++;
+    }
