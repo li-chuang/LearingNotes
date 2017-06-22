@@ -292,3 +292,25 @@
         }
         return e;
     }
+
+
+
+12,具体实例
+  	Map<String,Object> map = new HashMap<>();
+	map.put("one", null);
+	System.out.println("----------"+map.get("one"));
+	map.put(null, "hello");
+	System.out.println("----------"+ map.get(null));
+	map.put(null, null);
+	System.out.println("----------"+ map.get(null));
+  返回值为：
+  	----------null
+	----------hello
+	----------null
+  说明：
+    a) key可以为null，只不过这种情况下，散列码默认是“0”，默认映射到“桶”索引为“0”处，其他方面和一般的key没有区别
+    b) key相同的时候，放入Map中后面value的会替换掉前面的value，这一点对于key == null的情况也不例外
+    c) value可以为null，value是一种正常现象，只能说明Entry类中的一个属性值为null，不影响其他的值
+    d) key要用来计算散列码，相同的key散列码一致，导致key在Map中是唯一的，包括key == null也是如此；但value不是这样
+         value值可以是任意情况，所有value都是null都没有问题，说白了就是value不做要求。
+   
