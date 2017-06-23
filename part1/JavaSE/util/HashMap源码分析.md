@@ -314,4 +314,3 @@
     d) key要用来计算散列码，相同的key散列码一致，导致key在Map中是唯一的，包括key == null也是如此；但value不是这样
          value值可以是任意情况，所有value都是null都没有问题，说白了就是value不做要求。
 	 
-   
