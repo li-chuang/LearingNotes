@@ -113,4 +113,58 @@
   数据加入到红黑树中，其实整个过程很好理解，先进行“二分查找”，如果能找到相同的key，则只是将value进行替换即可，并返回被替换的值
   如果没有找到相同的值，则找准插入的位置，插入后进行节点调整，最终完成整次 put 操作。
   下面就是插入后调整的具体实现：
-    
+    private void fixAfterInsertion(Entry<K,V> x) {
+        x.color = RED;				// 新加入红黑树的默认节点就是红色
+        while (x != null && x != root && x.parent.color == RED) {	// 注意，假如父节点是黑色，添加一个红色节点后结构还是正常的，不用进行调节
+
+            if (parentOf(x) == leftOf(parentOf(parentOf(x)))) {		// 如果X的父节点（P）是其父节点的父节点（G）的左节点，获取其叔(U)节点(图1)
+                Entry<K,V> y = rightOf(parentOf(parentOf(x)));
+                if (colorOf(y) == RED) {			// 如果叔节点是红色的（父节点有判断是红色）. 即是双红色，比较好办，通过改变颜色就行(图2). 
+                    setColor(parentOf(x), BLACK);		// 把P和U都设置成黑色然后,X加到P节点。 G节点当作新加入节点继续迭代
+                    setColor(y, BLACK);
+                    setColor(parentOf(parentOf(x)), RED);
+                    x = parentOf(parentOf(x));
+                } else {					// 处理红父，黑叔的情况
+                    if (x == rightOf(parentOf(x))) {		// 如果X是右边节点(图3)
+                        x = parentOf(x);
+                        rotateLeft(x);				// 进行左旋(图4)
+                    }
+                    setColor(parentOf(x), BLACK);		// 到这，X只能是左节点了，而且P是红色，U是黑色的情况
+                    setColor(parentOf(parentOf(x)), RED);
+                    rotateRight(parentOf(parentOf(x)));		// 把P改成黑色，G改成红色，以G为节点进行右旋(图5)
+                }
+            } else {							// 父节点在右边的情况(图6)
+                Entry<K,V> y = leftOf(parentOf(parentOf(x)));	// 获取U
+                if (colorOf(y) == RED) {			// 红父红叔的情况(图7)
+                    setColor(parentOf(x), BLACK);
+                    setColor(y, BLACK);
+                    setColor(parentOf(parentOf(x)), RED);	// 把G当作新插入的节点继续进行迭代
+                    x = parentOf(parentOf(x));
+                } else {					// 红父黑叔，并且是右父的情况
+                    if (x == leftOf(parentOf(x))) {		// 如果插入的X是左节点(图8)
+                        x = parentOf(x);
+                        rotateRight(x);				// 以P为节点进行右旋(图9)
+                    }
+                    setColor(parentOf(x), BLACK);
+                    setColor(parentOf(parentOf(x)), RED);
+                    rotateLeft(parentOf(parentOf(x)));		// 以G为节点进行左旋(图10)
+                }
+            }
+        }
+        root.color = BLACK;			// 红黑树的根节点始终是黑色
+    }    
+  其实，有了注解后，还是比较难理解，可以参照下面的图：
+  图1.			图2.			图3.			图4.			图5.
+	  G			G			G			G			G
+	/   \		      /   \		      /   \		      /	  \		      /   \
+     P(red)  U		   P(red)  U(red)	   P(red)  U(black)	    P(X)   U			
+			 /			     \			   /
+		        X      			      X			 X(P)
+
+  图6.			图7.			图8.			图9.			图10.
+	  G			G			G			G
+        /   \		      /   \		      /   \		      /	  \
+       U   P(red)         U(red)  P(red)  	 U(black) P(red)	     U     P(X)
+							  /			     \
+							 X			     X(P)	
+
