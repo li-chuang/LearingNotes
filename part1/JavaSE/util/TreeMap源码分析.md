@@ -221,3 +221,101 @@
 									   \		     /
 									    U		    U
          此时的四叉结构并不稳定，需要进行处理，于是P上提，从而造成了一次旋转
+
+
+
+
+4.红黑树的删除操作
+    public V remove(Object key) {
+        Entry<K,V> p = getEntry(key);
+        if (p == null)			// 如果存在，则删除，如果不存在，直接返回null
+            return null;
+
+        V oldValue = p.value;
+        deleteEntry(p);
+        return oldValue;
+    }
+  在红黑树操作任何元素之前，需要找到这个元素，这里也不例外，删除之前，需要先找到这个元素
+    final Entry<K,V> getEntry(Object key) {
+        if (comparator != null)
+            return getEntryUsingComparator(key);
+        if (key == null)
+            throw new NullPointerException();
+        Comparable<? super K> k = (Comparable<? super K>) key;
+        Entry<K,V> p = root;
+        while (p != null) {			// 不断进行迭代比较
+            int cmp = k.compareTo(p.key);
+            if (cmp < 0)
+                p = p.left;
+            else if (cmp > 0)
+                p = p.right;
+            else
+                return p;
+        }
+        return null;				// 确实没找到，则返回null
+    }
+  找到了之后，则正式开始删除指定的元素，总的纲领还是先删除节点，然后再平衡红黑树
+    private void deleteEntry(Entry<K,V> p) {
+        modCount++;
+        size--;
+
+        if (p.left != null && p.right != null) {	// 假如要删除的节点“P”有继承人
+            Entry<K,V> s = successor(p);
+            p.key = s.key;
+            p.value = s.value;
+            p = s;
+        } // p has 2 children
+
+        // Start fixup at replacement node, if it exists.
+        Entry<K,V> replacement = (p.left != null ? p.left : p.right);
+
+        if (replacement != null) {
+            // Link replacement to parent
+            replacement.parent = p.parent;
+            if (p.parent == null)
+                root = replacement;
+            else if (p == p.parent.left)
+                p.parent.left  = replacement;
+            else
+                p.parent.right = replacement;
+
+            // Null out links so they are OK to use by fixAfterDeletion.
+            p.left = p.right = p.parent = null;
+
+            // Fix replacement
+            if (p.color == BLACK)
+                fixAfterDeletion(replacement);
+        } else if (p.parent == null) { // return if we are the only node.
+            root = null;
+        } else { //  No children. Use self as phantom replacement and unlink.
+            if (p.color == BLACK)
+                fixAfterDeletion(p);
+
+            if (p.parent != null) {
+                if (p == p.parent.left)
+                    p.parent.left = null;
+                else if (p == p.parent.right)
+                    p.parent.right = null;
+                p.parent = null;
+            }
+        }
+    }
+  继承人节点的处理是这样的
+    static <K,V> TreeMap.Entry<K,V> successor(Entry<K,V> t) {	// 返回指定节点的继承人节点，如果没有则返回null
+        if (t == null)
+            return null;
+        else if (t.right != null) {	// 指定节点的右支不为空
+            Entry<K,V> p = t.right;
+            while (p.left != null)	// 获取右支最小值，也是刚刚比指定节点大的值
+                p = p.left;
+            return p;
+        } else {			// 右支没有值，则获取父节点
+            Entry<K,V> p = t.parent;
+            Entry<K,V> ch = t;
+            while (p != null && ch == p.right) {
+                ch = p;
+                p = p.parent;
+            }
+            return p;
+        }
+    }
