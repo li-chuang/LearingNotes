@@ -254,53 +254,94 @@
         }
         return null;				// 确实没找到，则返回null
     }
-  找到了之后，则正式开始删除指定的元素，总的纲领还是先删除节点，然后再平衡红黑树
+  找到了之后，则正式开始删除指定的元素，总的纲领还是先删除节点，然后再平衡红黑树。不过与插入节点相比，删除节点的情况则要复杂好多
+  删除的情况分为以下几类：
+  a)被删除的节点是叶子节点，则只需要将它从其父节点中删除即可
+  b)被删除节点p只有左子树，将p的左子树pL添加成p的父节点的左子树即可；
+    被删除节点p只有右子树，将p的右子树pR添加成p的父节点的右子树即可。
+  c)若被删除节点p的左、右子树均非空，有两种做法：
+    i.将 pL 设为 p 的父节点 q 的左或右子节点（取决于 p 是其父节点 q 的左、右子节点），将 pR 设为 p 节点的中序前趋节点 s 的
+      右子节点（s 是 pL 最右下的节点，也就是 pL 子树中最大的节点）。
+    ii.以 p 节点的中序前趋或后继替代 p 所指节点，然后再从原排序二叉树中删去中序前趋或后继节点即可。（也就是用大于 p 的最小节点
+      或小于 p 的最大节点代替 p 节点即可）。
     private void deleteEntry(Entry<K,V> p) {
         modCount++;
         size--;
 
-        if (p.left != null && p.right != null) {	// 假如要删除的节点“P”有继承人
-            Entry<K,V> s = successor(p);
-            p.key = s.key;
+        if (p.left != null && p.right != null) {	// 如果被删除节点的左子树、右子树都不为空，符合（情况c）
+            Entry<K,V> s = successor(p);		// 用 p 节点的中序后继节点代替 p 节点
+            p.key = s.key;				
             p.value = s.value;
             p = s;
-        } // p has 2 children
+        } 
 
-        // Start fixup at replacement node, if it exists.
+        // 如果 p 节点的左节点存在，replacement 代表左节点；否则代表右节点。
         Entry<K,V> replacement = (p.left != null ? p.left : p.right);
 
-        if (replacement != null) {
-            // Link replacement to parent
+        if (replacement != null) {		// 左、右节点至少存在一个
             replacement.parent = p.parent;
-            if (p.parent == null)
+            if (p.parent == null)		// 如果 p 没有父节点，则 replacemment 变成父节点
                 root = replacement;
-            else if (p == p.parent.left)
+            else if (p == p.parent.left)	// 如果 p 节点是其父节点的左子节点
                 p.parent.left  = replacement;
-            else
+            else				// 如果 p 节点是其父节点的右子节点
                 p.parent.right = replacement;
 
-            // Null out links so they are OK to use by fixAfterDeletion.
-            p.left = p.right = p.parent = null;
+            p.left = p.right = p.parent = null;	// p 节点删除
 
-            // Fix replacement
             if (p.color == BLACK)
                 fixAfterDeletion(replacement);
-        } else if (p.parent == null) { // return if we are the only node.
+        } else if (p.parent == null) { 		// 如果 p 节点没有父节点，也没有子节点，说明这就是一个单独的根节点，直接删除
             root = null;
-        } else { //  No children. Use self as phantom replacement and unlink.
-            if (p.color == BLACK)
-                fixAfterDeletion(p);
+        } else { 				// 没有孩子，也就是说这是一个叶子节点，只需要将它从其父节点上删去即可
+            if (p.color == BLACK)		// 如果此节点是黑色，删去一个黑色节点，将导致此分支上末端到根节点途径的黑色节点减少
+                fixAfterDeletion(p);		// 所以需要修复红黑树
 
-            if (p.parent != null) {
+            if (p.parent != null) {		// 如果 p 是其父节点的左子节点
                 if (p == p.parent.left)
                     p.parent.left = null;
-                else if (p == p.parent.right)
+                else if (p == p.parent.right)	// 如果 p 是其父节点的右子节点
                     p.parent.right = null;
                 p.parent = null;
             }
         }
     }
-  继承人节点的处理是这样的
+  如果实在难以理解，可以看下面的图：
+  被删除的节点(30)只有左子树：
+		18				18
+	       /  \			       /  \
+	     12    30			     12    23
+   	      \    / 		--->>	      \     \
+	      14  23			      14     26
+	      /    \  			      /
+             13     26			     13
+  被删除的节点(12)只有右子树：
+		18				18
+	       /  \			       /  \
+	     12    30			     14    30
+   	      \    / 		--->>	     /     /
+	      14  23			    13    23
+	      /    \  			   	   \   
+             13     26				    26	
+  以上只有一侧子树的情况比较好处理，直接越过被删除节点，将父节点与其左、右节点续接在一起即可	
+  被删除节点既有左子树，又有右子树：  
+  i.将p(20)左子节点设为q(5)的子节点，将p(20)的右子节点设为pL子树中最大节点的的右子节点
+		5  				5
+	      /   \			       / \
+	     3     20			      3   10
+  		  /  \		--->>		 /  \
+		 10   30 			8    15
+		/  \				      \
+	       8   15				       30	
+  ii.用被删除节点后继(30)代替被删除节点(15)，这种方法也是代码中使用的方法：找到中序后继节点，替换即可，再删除此后继节点
+		5				5
+	       / \			       / \
+	      3   15			      3   30
+	         /  \		--->>	     	 /
+     	        10   30   		        10
+	       / 			       /
+	      8				      8
+  获取“P”节点的中序后继节点
     static <K,V> TreeMap.Entry<K,V> successor(Entry<K,V> t) {	// 返回指定节点的继承人节点，如果没有则返回null
         if (t == null)
             return null;
@@ -309,7 +350,7 @@
             while (p.left != null)	// 获取右支最小值，也是刚刚比指定节点大的值
                 p = p.left;
             return p;
-        } else {			// 右支没有值，则获取父节点
+        } else {			
             Entry<K,V> p = t.parent;
             Entry<K,V> ch = t;
             while (p != null && ch == p.right) {
@@ -319,3 +360,12 @@
             return p;
         }
     }
+  中序后继节点的情况大致有以下几种：
+		18				18			18
+	       /  \			       /  \		       /  \
+	     12    30			     12    23		      10   23	
+   	    /  \   / 			    /       \   	       \     \
+	   10  14  23			   10        26			12    26
+	      /  \  \  							/      
+             13  15  26						       11		    	  	 
+  节点P(12)的中序后继节点分别为：13	18	18
