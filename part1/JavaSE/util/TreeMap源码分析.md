@@ -365,7 +365,75 @@
 	       /  \			       /  \		       /  \
 	     12    30			     12    23		      10   23	
    	    /  \   / 			    /       \   	       \     \
-	   10  14  23			   10        26			12    26
-	      /  \  \  							/      
-             13  15  26						       11		    	  	 
+	   10  14  23			   10        26			11    26
+	      /  \  \  							 \    
+             13  15  26						          12		    	  	 
   节点P(12)的中序后继节点分别为：13	18	18
+  对于一颗二叉查找树，给定节点t，其后继可以通过以下方法找到：
+  a) t的右子树不空，则t的后继是其右子树中最小的那个元素
+  b) t的右子树为空，则t的后继是其第一个向左走的祖先
+
+  搞定了如何删除指定的节点后，原来是红节点还好，没有什么影响，删除了黑色节点，则需要调整红黑树的结构，使红黑树再次保持平衡
+  下面的代码是将指定的节点删除后，替换的节点也转换到位，由于之前的删除，导致红黑树不再平衡，于是需要经过一些修正，再次回到平衡状态
+  x节点是替换过来的值，当然，替换过来的值有些改变了位置，有些改变了key-value，但都没有改变颜色
+    private void fixAfterDeletion(Entry<K,V> x) {		// 删除节点后修复红黑树
+        while (x != root && colorOf(x) == BLACK) {		// 直到 x 不是根节点，且 x 的颜色是黑色，才进行调整
+            if (x == leftOf(parentOf(x))) {			// 如果 x 是其父节点的左子节点
+                Entry<K,V> sib = rightOf(parentOf(x));		// 获取 x 节点的兄弟节点
+
+                if (colorOf(sib) == RED) {			// 如果 sib 节点是红色
+                    setColor(sib, BLACK);
+                    setColor(parentOf(x), RED);
+                    rotateLeft(parentOf(x));
+                    sib = rightOf(parentOf(x));			// 再次将 sib 设为 x 的父节点的右子节点
+                }
+
+                if (colorOf(leftOf(sib))  == BLACK &&		// 如果 sib 的两个子节点都是黑色
+                    colorOf(rightOf(sib)) == BLACK) {
+                    setColor(sib, RED);
+                    x = parentOf(x);				// 让 x 等于 x 的父节点
+                } else {
+                    if (colorOf(rightOf(sib)) == BLACK) {	// 如果 sib 的只有右子节点是黑色
+                        setColor(leftOf(sib), BLACK);
+                        setColor(sib, RED);
+                        rotateRight(sib);
+                        sib = rightOf(parentOf(x));
+                    }
+                    setColor(sib, colorOf(parentOf(x))); 	// 设置 sib 的颜色与 x 的父节点的颜色相同
+                    setColor(parentOf(x), BLACK);
+                    setColor(rightOf(sib), BLACK);
+                    rotateLeft(parentOf(x));
+                    x = root;
+                }
+            } else { 						// 对称的，如果 x 是其父节点的右子节点
+                Entry<K,V> sib = leftOf(parentOf(x));
+
+                if (colorOf(sib) == RED) {			// 如果 sib 的颜色是红色
+                    setColor(sib, BLACK);
+                    setColor(parentOf(x), RED);
+                    rotateRight(parentOf(x));
+                    sib = leftOf(parentOf(x));
+                }
+
+                if (colorOf(rightOf(sib)) == BLACK &&		// 如果 sib 的两个子节点都是黑色
+                    colorOf(leftOf(sib)) == BLACK) {
+                    setColor(sib, RED);
+                    x = parentOf(x);
+                } else {
+                    if (colorOf(leftOf(sib)) == BLACK) {	// 如果 sib 只有左子节点是黑色
+                        setColor(rightOf(sib), BLACK);
+                        setColor(sib, RED);
+                        rotateLeft(sib);
+                        sib = leftOf(parentOf(x));
+                    }
+                    setColor(sib, colorOf(parentOf(x)));
+                    setColor(parentOf(x), BLACK);
+                    setColor(leftOf(sib), BLACK);
+                    rotateRight(parentOf(x));
+                    x = root;
+                }
+            }
+        }
+        setColor(x, BLACK);
+    }
+  好吧，节点删除就此打住，我以后再专门开一个点来说明，这里就不再展开了。
